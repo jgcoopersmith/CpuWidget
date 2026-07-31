@@ -30,6 +30,7 @@ public partial class MainWindow : Window
 
         Topmost = _settings.AlwaysOnTop;
         Opacity = _settings.Opacity;
+        MetricPanel.UseFahrenheit = _settings.Fahrenheit;
 
         BuildContextMenu();
         MouseLeftButtonDown += (_, _) => { if (Mouse.LeftButton == MouseButtonState.Pressed) DragMove(); };
@@ -170,8 +171,23 @@ public partial class MainWindow : Window
             DestroyIcon(h);
         }
 
-        string tip = $"CPU {pct}%" + (cpu.Temp is float t ? $"  {t:0}°C" : "");
-        if (_monitor.GpuPresent && GpuPanel.LastTemp is float gt) tip += $"\nGPU {gt:0}°C";
+        _lastCpu = cpu;
+        UpdateTrayTooltip();
+    }
+
+    private DeviceReading? _lastCpu;
+
+    private void UpdateTrayTooltip()
+    {
+        if (_tray is null || _lastCpu is null) return;
+
+        string unit = MetricPanel.UseFahrenheit ? "°F" : "°C";
+        static float Show(float c) => MetricPanel.UseFahrenheit ? c * 9f / 5f + 32f : c;
+
+        string tip = $"CPU {_lastCpu.Load ?? 0:0}%" +
+                     (_lastCpu.Temp is float t ? $"  {Show(t):0}{unit}" : "");
+        if (_monitor.GpuPresent && GpuPanel.LastTemp is float gt)
+            tip += $"\nGPU {Show(gt):0}{unit}";
         _tray.Text = tip;
     }
 
@@ -189,6 +205,25 @@ public partial class MainWindow : Window
             _settings.Save();
         };
         menu.Items.Add(onTop);
+
+        var fahrenheit = new MenuItem
+        {
+            Header = "Show °F",
+            IsCheckable = true,
+            IsChecked = _settings.Fahrenheit,
+        };
+        fahrenheit.Click += (_, _) =>
+        {
+            _settings.Fahrenheit = fahrenheit.IsChecked;
+            MetricPanel.UseFahrenheit = fahrenheit.IsChecked;
+            _settings.Save();
+
+            // Redraw immediately rather than waiting for the next poll.
+            CpuPanel.Refresh();
+            GpuPanel.Refresh();
+            UpdateTrayTooltip();
+        };
+        menu.Items.Add(fahrenheit);
 
         var opacity = new MenuItem { Header = "Opacity" };
         foreach (var value in new[] { 1.0, 0.92, 0.8, 0.65 })

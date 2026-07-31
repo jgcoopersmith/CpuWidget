@@ -20,7 +20,14 @@ public partial class MetricPanel : UserControl
     private const double TempGraphMax = 100;
 
     private readonly List<DeviceReading> _history = new();
+    private DeviceReading? _last;
     private double _graphWidth, _graphHeight;
+
+    /// <summary>Display unit for every panel. Sensors and thresholds stay in Celsius.</summary>
+    public static bool UseFahrenheit { get; set; }
+
+    private static float ToDisplay(float celsius) => UseFahrenheit ? celsius * 9f / 5f + 32f : celsius;
+    private static string UnitLabel => UseFahrenheit ? "°F" : "°C";
 
     public MetricPanel()
     {
@@ -65,15 +72,30 @@ public partial class MetricPanel : UserControl
     public void Update(DeviceReading r)
     {
         LastTemp = r.Temp;
+        _last = r;
 
         _history.Add(r);
         if (_history.Count > HistoryLength) _history.RemoveRange(0, _history.Count - HistoryLength);
 
+        Render(r);
+    }
+
+    /// <summary>Redraws the last sample — used when the temperature unit changes.</summary>
+    public void Refresh()
+    {
+        if (_last is not null) Render(_last);
+    }
+
+    private void Render(DeviceReading r)
+    {
         UsageText.Text = r.Load is float load ? load.ToString("0") : "--";
+
+        TempUnitText.Text = UnitLabel;
 
         if (r.Temp is float temp)
         {
-            TempText.Text = temp.ToString("0");
+            TempText.Text = ToDisplay(temp).ToString("0");
+            // Colour thresholds are defined in Celsius regardless of the display unit.
             var brush = new SolidColorBrush(TempColor(temp));
             TempText.Foreground = brush;
             TempUnitText.Foreground = brush;
@@ -95,7 +117,7 @@ public partial class MetricPanel : UserControl
         {
             var parts = new List<string>();
             if (r.SecondaryTemp is float second && r.Temp is float primary && Math.Abs(second - primary) >= 1)
-                parts.Add($"{r.SecondaryLabel} {second:0}°");
+                parts.Add($"{r.SecondaryLabel} {ToDisplay(second):0}°");
             if (r.MemoryUsedMb is float mb) parts.Add($"{mb / 1024f:0.0} GB");
             if (r.PowerWatts is float w) parts.Add($"{w:0} W");
             DetailText.Text = string.Join("   ", parts);

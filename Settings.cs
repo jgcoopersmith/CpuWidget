@@ -10,6 +10,8 @@ public sealed class Settings
     public double? Top { get; set; }
     public bool AlwaysOnTop { get; set; } = true;
     public double Opacity { get; set; } = 0.92;
+    /// <summary>Show temperatures in °F instead of °C.</summary>
+    public bool Fahrenheit { get; set; }
 
     private static string Path0 => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),

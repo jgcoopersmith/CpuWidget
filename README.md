@@ -18,7 +18,8 @@ unelevated and you'll get usage only — everything else shows `--`.
 ## Controls
 
 - **Drag** anywhere on the widget to move it. Position is remembered.
-- **Right-click** for: always-on-top toggle, opacity, *Start with Windows*, reset position, exit.
+- **Right-click** for: always-on-top toggle, **°C / °F**, opacity, *Start with Windows*,
+  reset position, exit. The unit choice applies instantly and is remembered.
 - **Tray icon** shows CPU% over a bar tinted by temperature. Left-click hides/shows the widget.
 
 *Start with Windows* registers a scheduled task (`CpuWidget`, run at logon with highest
