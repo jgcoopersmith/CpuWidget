@@ -84,14 +84,21 @@ public static class ThermostatIcon
             }
         }
 
-        // --- needle, pinned at the top of the scale ---
+        // --- needle, swung into the middle of the red band ---
+        const float needleAngle = 350f;   // degrees, centre of the 310°-390° red band
         float needleLen = faceR * 0.90f;
         float halfBase = s * (detailed ? 0.07f : 0.10f);
+
+        double needleRad = needleAngle * Math.PI / 180.0;
+        float dx = (float)Math.Cos(needleRad), dy = (float)Math.Sin(needleRad);
+        float px = -dy, py = dx;          // perpendicular, for the width of the tail
+        float tailOffset = s * 0.045f;    // tail overhangs the hub slightly
+
         var needle = new[]
         {
-            new PointF(cx, cy - needleLen),                 // tip, straight up
-            new PointF(cx - halfBase, cy + s * 0.045f),
-            new PointF(cx + halfBase, cy + s * 0.045f),
+            new PointF(cx + dx * needleLen, cy + dy * needleLen),                          // tip
+            new PointF(cx + px * halfBase - dx * tailOffset, cy + py * halfBase - dy * tailOffset),
+            new PointF(cx - px * halfBase - dx * tailOffset, cy - py * halfBase - dy * tailOffset),
         };
         using (var brush = new SolidBrush(Color.FromArgb(0xD9, 0x2B, 0x1C)))
         {
