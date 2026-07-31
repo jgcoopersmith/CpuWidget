@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>CpuWidget</AssemblyName>
+    <RootNamespace>CpuWidget</RootNamespace>
+    <PlatformTarget>x64</PlatformTarget>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="LibreHardwareMonitorLib" Version="0.9.4" />
+  </ItemGroup>
+
+  <!-- The diagnostic tool is a separate project living in a subfolder; keep its sources
+       (and its generated AssemblyInfo) out of this project's default globs. -->
+  <ItemGroup>
+    <Compile Remove="SensorDump\**" />
+    <None Remove="SensorDump\**" />
+    <Page Remove="SensorDump\**" />
+  </ItemGroup>
+
+</Project>
