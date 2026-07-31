@@ -54,6 +54,19 @@ and GPU sensor it found on the first poll. If a reading shows `--`, that log say
 `D:\Claude\CpuWidget\diag\SensorDump.exe` is a standalone console dump of the same data.
 Don't run it while the widget is running — they share the same kernel driver.
 
+## Icon
+
+`app.ico` is a round old-style thermostat dial with the needle swung to the top of the
+scale, into a red "maxed out" band. It is generated rather than hand-drawn — edit
+`IconGen/Program.cs` and regenerate:
+
+```
+dotnet run --project IconGen -c Release -- app.ico
+```
+
+It writes 16/20/24/32/48/64/128/256 px frames. The small frames deliberately use a thinner
+bezel and a wider scale band; at 16 px the detailed version collapses into a dark blob.
+
 ## Build
 
 Requires the .NET 10 SDK.

@@ -11,18 +11,19 @@
     <RootNamespace>CpuWidget</RootNamespace>
     <PlatformTarget>x64</PlatformTarget>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>app.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="LibreHardwareMonitorLib" Version="0.9.4" />
   </ItemGroup>
 
-  <!-- The diagnostic tool is a separate project living in a subfolder; keep its sources
-       (and its generated AssemblyInfo) out of this project's default globs. -->
+  <!-- The diagnostic and icon tools are separate projects living in subfolders; keep their
+       sources (and their generated AssemblyInfo) out of this project's default globs. -->
   <ItemGroup>
-    <Compile Remove="SensorDump\**" />
-    <None Remove="SensorDump\**" />
-    <Page Remove="SensorDump\**" />
+    <Compile Remove="SensorDump\**;IconGen\**" />
+    <None Remove="SensorDump\**;IconGen\**" />
+    <Page Remove="SensorDump\**;IconGen\**" />
   </ItemGroup>
 
 </Project>
