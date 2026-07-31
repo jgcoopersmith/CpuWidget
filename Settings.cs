@@ -8,6 +8,8 @@ public sealed class Settings
 {
     public double? Left { get; set; }
     public double? Top { get; set; }
+    /// <summary>Widget width; wider shows a longer history in each graph.</summary>
+    public double? Width { get; set; }
     public bool AlwaysOnTop { get; set; } = true;
     public double Opacity { get; set; } = 0.92;
     /// <summary>Show temperatures in °F instead of °C.</summary>

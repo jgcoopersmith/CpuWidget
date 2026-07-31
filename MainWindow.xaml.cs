@@ -10,6 +10,9 @@ using Color = System.Windows.Media.Color;
 using ContextMenu = System.Windows.Controls.ContextMenu;
 using MenuItem = System.Windows.Controls.MenuItem;
 using Separator = System.Windows.Controls.Separator;
+using MouseEventArgs = System.Windows.Input.MouseEventArgs;
+using Point = System.Windows.Point;
+using Matrix = System.Windows.Media.Matrix;
 
 namespace CpuWidget;
 
@@ -59,6 +62,8 @@ public partial class MainWindow : Window
             Divider.Visibility = Visibility.Collapsed;
         }
 
+        if (_settings.Width is double w) Width = Math.Clamp(w, MinWidth, MaxWidth);
+
         // Position after layout so the measured height is known.
         if (_settings.Left is double l && _settings.Top is double t)
         {
@@ -106,6 +111,64 @@ public partial class MainWindow : Window
         {
             _reading = false;
         }
+    }
+
+    // --- edge resizing ---------------------------------------------------
+
+    private int _grip;              // -1 dragging the left edge, +1 the right, 0 idle
+    private double _dragStartLeft, _dragStartWidth, _dragStartCursorX;
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct POINT { public int X, Y; }
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetCursorPos(out POINT p);
+
+    /// <summary>
+    /// Cursor X in device-independent units. Read from the screen rather than from mouse-event
+    /// coordinates: those are relative to the window, which moves while the left edge is dragged.
+    /// </summary>
+    private double CursorX()
+    {
+        if (!GetCursorPos(out var p)) return _dragStartCursorX;
+        var transform = PresentationSource.FromVisual(this)?.CompositionTarget?.TransformFromDevice;
+        return transform is Matrix m ? m.Transform(new Point(p.X, p.Y)).X : p.X;
+    }
+
+    private void Grip_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        var grip = (FrameworkElement)sender;
+        _grip = (string)grip.Tag == "L" ? -1 : 1;
+        _dragStartLeft = Left;
+        _dragStartWidth = ActualWidth;
+        _dragStartCursorX = CursorX();
+        grip.CaptureMouse();
+        e.Handled = true;   // don't let the window-drag handler start moving the widget
+    }
+
+    private void Grip_MouseMove(object sender, MouseEventArgs e)
+    {
+        if (_grip == 0) return;
+
+        double delta = CursorX() - _dragStartCursorX;
+        double width = Math.Clamp(_dragStartWidth + delta * _grip, MinWidth, MaxWidth);
+
+        // Dragging the left edge keeps the right edge pinned.
+        if (_grip < 0) Left = _dragStartLeft + (_dragStartWidth - width);
+        Width = width;
+    }
+
+    private void Grip_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (_grip == 0) return;
+        _grip = 0;
+        ((FrameworkElement)sender).ReleaseMouseCapture();
+
+        _settings.Width = Width;
+        _settings.Left = Left;
+        _settings.Save();
+        e.Handled = true;
     }
 
     // --- tray icon -------------------------------------------------------
@@ -307,6 +370,7 @@ public partial class MainWindow : Window
         _timer.Stop();
         _settings.Left = Left;
         _settings.Top = Top;
+        _settings.Width = Width;
         _settings.Save();
 
         if (_tray is not null)

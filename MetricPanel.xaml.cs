@@ -15,9 +15,19 @@ namespace CpuWidget;
 /// </summary>
 public partial class MetricPanel : UserControl
 {
-    private const int HistoryLength = 90;   // samples kept in the graph (~90 s at 1 Hz)
-    private const double TempGraphMin = 25; // °C at the bottom of the graph
+    private const double PixelsPerSample = 3;   // widening the widget buys more history, not wider pixels
+    private const int MinSamples = 40;
+    private const int MaxSamples = 900;
+    private const double TempGraphMin = 25;     // °C at the bottom of the graph
     private const double TempGraphMax = 100;
+
+    /// <summary>Samples the graph can show at the current width (~1 s each).</summary>
+    private int Capacity => _graphWidth <= 1
+        ? MinSamples
+        : Math.Clamp((int)(_graphWidth / PixelsPerSample), MinSamples, MaxSamples);
+
+    /// <summary>History span currently visible, in seconds.</summary>
+    public int WindowSeconds => Capacity;
 
     private readonly List<DeviceReading> _history = new();
     private DeviceReading? _last;
@@ -75,7 +85,7 @@ public partial class MetricPanel : UserControl
         _last = r;
 
         _history.Add(r);
-        if (_history.Count > HistoryLength) _history.RemoveRange(0, _history.Count - HistoryLength);
+        Trim();
 
         Render(r);
     }
@@ -134,10 +144,17 @@ public partial class MetricPanel : UserControl
         _ => Color.FromRgb(0x62, 0xD0, 0x95),
     };
 
+    private void Trim()
+    {
+        int capacity = Capacity;
+        if (_history.Count > capacity) _history.RemoveRange(0, _history.Count - capacity);
+    }
+
     private void Graph_SizeChanged(object sender, SizeChangedEventArgs e)
     {
         _graphWidth = e.NewSize.Width;
         _graphHeight = e.NewSize.Height;
+        Trim();          // narrowing drops the oldest samples that no longer fit
         DrawGraph();
     }
 
@@ -146,8 +163,9 @@ public partial class MetricPanel : UserControl
         if (_graphWidth <= 1 || _graphHeight <= 1 || _history.Count < 2) return;
 
         // Newest sample sits at the right edge; the graph fills in from the right as history builds.
-        double step = _graphWidth / (HistoryLength - 1);
-        int first = HistoryLength - _history.Count;
+        int capacity = Capacity;
+        double step = _graphWidth / (capacity - 1);
+        int first = capacity - _history.Count;
 
         var usage = new PointCollection();
         var temps = new PointCollection();
