@@ -24,7 +24,8 @@ unelevated and you'll get usage only — everything else shows `--`.
   and dragging the left edge keeps the right edge pinned. Range 260–1600 px.
 - **Right-click** for: always-on-top toggle, **°C / °F**, opacity, *Start with Windows*,
   reset position, exit. The unit choice applies instantly and is remembered.
-- **Tray icon** shows CPU% over a bar tinted by temperature. Left-click hides/shows the widget.
+- **Tray icon** is the thermostat dial. Hover for CPU load / temperature and GPU temperature;
+  left-click hides/shows the widget; right-click for show-hide and exit.
 
 *Start with Windows* registers a scheduled task (`CpuWidget`, run at logon with highest
 privileges) rather than a Run-key entry, so it starts without a UAC prompt each boot.
@@ -56,9 +57,10 @@ Don't run it while the widget is running — they share the same kernel driver.
 
 ## Icon
 
-`app.ico` is a round old-style thermostat dial with the needle swung to the top of the
-scale, into a red "maxed out" band. It is generated rather than hand-drawn — edit
-`IconGen/Program.cs` and regenerate:
+A round old-style thermostat dial with the needle swung to the top of the scale, into a red
+"maxed out" band. It is drawn in code by `ThermostatIcon.Render`, which serves both the tray
+icon (rendered at the shell's small-icon size at startup) and `app.ico`. To change the
+artwork, edit `ThermostatIcon.cs` and regenerate the .ico:
 
 ```
 dotnet run --project IconGen -c Release -- app.ico

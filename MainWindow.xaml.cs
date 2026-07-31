@@ -6,7 +6,6 @@ using System.Windows.Threading;
 using Drawing = System.Drawing;
 using Forms = System.Windows.Forms;
 // WinForms is referenced only for the tray icon; keep the WPF types as the unqualified ones.
-using Color = System.Windows.Media.Color;
 using ContextMenu = System.Windows.Controls.ContextMenu;
 using MenuItem = System.Windows.Controls.MenuItem;
 using Separator = System.Windows.Controls.Separator;
@@ -101,7 +100,8 @@ public partial class MainWindow : Window
                 GpuPanel.Update(gpu);
             }
 
-            UpdateTrayIcon(cpu);
+            _lastCpu = cpu;
+            UpdateTrayTooltip();
         }
         catch (Exception ex)
         {
@@ -179,7 +179,7 @@ public partial class MainWindow : Window
         {
             Visible = true,
             Text = "CPU Widget",
-            Icon = Drawing.SystemIcons.Application,
+            Icon = MakeTrayIcon(),
         };
         _tray.MouseClick += (_, e) =>
         {
@@ -198,44 +198,27 @@ public partial class MainWindow : Window
     [DllImport("user32.dll", SetLastError = true)]
     private static extern bool DestroyIcon(IntPtr handle);
 
-    private void UpdateTrayIcon(DeviceReading cpu)
+    /// <summary>
+    /// Renders the thermostat dial at the shell's small-icon size, so it stays sharp at
+    /// whatever DPI the tray is running.
+    /// </summary>
+    private static Drawing.Icon MakeTrayIcon()
     {
-        if (_tray is null) return;
+        int size = Math.Max(16, Forms.SystemInformation.SmallIconSize.Width);
+        using var bmp = ThermostatIcon.Render(size);
 
-        int pct = (int)Math.Round(cpu.Load ?? 0);
-        using var bmp = new Drawing.Bitmap(16, 16);
-        using (var g = Drawing.Graphics.FromImage(bmp))
-        {
-            g.Clear(Drawing.Color.Transparent);
-            g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.SingleBitPerPixelGridFit;
-
-            // A filled bar behind the number gives an at-a-glance read even at 16px.
-            int barHeight = (int)Math.Round(pct / 100.0 * 16);
-            var c = cpu.Temp is float tv ? MetricPanel.TempColor(tv) : Color.FromRgb(0x5A, 0xA9, 0xFF);
-            using var bar = new Drawing.SolidBrush(Drawing.Color.FromArgb(120, c.R, c.G, c.B));
-            g.FillRectangle(bar, 0, 16 - barHeight, 16, barHeight);
-
-            string text = pct >= 100 ? "99" : pct.ToString();
-            using var font = new Drawing.Font("Segoe UI", 7.5f, Drawing.FontStyle.Bold, Drawing.GraphicsUnit.Point);
-            using var white = new Drawing.SolidBrush(Drawing.Color.White);
-            var size = g.MeasureString(text, font);
-            g.DrawString(text, font, white, (16 - size.Width) / 2, (16 - size.Height) / 2);
-        }
-
-        IntPtr h = bmp.GetHicon();
+        IntPtr handle = bmp.GetHicon();
         try
         {
-            var old = _tray.Icon;
-            _tray.Icon = Drawing.Icon.FromHandle(h);
-            old?.Dispose();
+            // FromHandle doesn't own the handle, so clone into a managed icon before
+            // destroying it — otherwise the tray shows a dead handle.
+            using var temp = Drawing.Icon.FromHandle(handle);
+            return (Drawing.Icon)temp.Clone();
         }
         finally
         {
-            DestroyIcon(h);
+            DestroyIcon(handle);
         }
-
-        _lastCpu = cpu;
-        UpdateTrayTooltip();
     }
 
     private DeviceReading? _lastCpu;

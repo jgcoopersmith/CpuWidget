@@ -10,4 +10,9 @@
     <PlatformTarget>x64</PlatformTarget>
   </PropertyGroup>
 
+  <!-- The dial is drawn by the widget's own code so the tray icon and app.ico can't drift. -->
+  <ItemGroup>
+    <Compile Include="..\ThermostatIcon.cs" Link="ThermostatIcon.cs" />
+  </ItemGroup>
+
 </Project>
