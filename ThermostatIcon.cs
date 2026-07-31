@@ -61,11 +61,12 @@ public static class ThermostatIcon
             g.DrawArc(pen, Box(scaleR), start, sweep);
         }
 
+        // The warm bands sit at the clockwise (right-hand) end of the scale, red running out
+        // to the very end of the sweep.
         var cool = Color.FromArgb(0x9A, 0x93, 0x82);
-        Band(cool, 150f, 80f);                                  // cool end
-        Band(Color.FromArgb(0xE2, 0xA3, 0x3A), 230f, 20f);      // warming
-        Band(Color.FromArgb(0xE0, 0x2B, 0x1A), 250f, 40f);      // maxed out, centred on 270° (top)
-        Band(cool, 290f, 100f);
+        Band(cool, 150f, 120f);                                 // cool end, up to the top
+        Band(Color.FromArgb(0xE2, 0xA3, 0x3A), 270f, 40f);      // warming
+        Band(Color.FromArgb(0xE0, 0x2B, 0x1A), 310f, 80f);      // maxed out, to the end of the scale
 
         if (detailed)
         {
