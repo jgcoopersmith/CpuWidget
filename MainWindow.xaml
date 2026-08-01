@@ -52,7 +52,8 @@
                     HorizontalAlignment="Left"
                     MouseLeftButtonDown="Grip_MouseLeftButtonDown"
                     MouseMove="Grip_MouseMove"
-                    MouseLeftButtonUp="Grip_MouseLeftButtonUp">
+                    MouseLeftButtonUp="Grip_MouseLeftButtonUp"
+                    LostMouseCapture="Grip_LostMouseCapture">
                 <Rectangle Style="{StaticResource GripHintStyle}" />
             </Border>
 
@@ -60,7 +61,8 @@
                     HorizontalAlignment="Right"
                     MouseLeftButtonDown="Grip_MouseLeftButtonDown"
                     MouseMove="Grip_MouseMove"
-                    MouseLeftButtonUp="Grip_MouseLeftButtonUp">
+                    MouseLeftButtonUp="Grip_MouseLeftButtonUp"
+                    LostMouseCapture="Grip_LostMouseCapture">
                 <Rectangle Style="{StaticResource GripHintStyle}" />
             </Border>
         </Grid>

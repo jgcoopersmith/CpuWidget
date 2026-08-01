@@ -18,6 +18,15 @@
     <PackageReference Include="LibreHardwareMonitorLib" Version="0.9.4" />
   </ItemGroup>
 
+  <!-- Ship the .ico alongside the exe so shortcuts can point at it directly. Explorer
+       caches shortcut icons by path, and a path it has already seen may keep serving a
+       stale image after the artwork changes. -->
+  <ItemGroup>
+    <Content Include="app.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
   <!-- The diagnostic and icon tools are separate projects living in subfolders; keep their
        sources (and their generated AssemblyInfo) out of this project's default globs. -->
   <ItemGroup>

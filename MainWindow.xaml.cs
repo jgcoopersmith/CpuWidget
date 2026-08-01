@@ -22,6 +22,8 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(1) };
 
     private Forms.NotifyIcon? _tray;
+    private Drawing.Icon? _trayIcon;
+    private MenuItem _startupItem = null!;   // built in BuildContextMenu, from the constructor
     private bool _reading;   // guards against overlapping sensor reads
 
     private const string TaskName = "CpuWidget";
@@ -80,6 +82,14 @@ public partial class MainWindow : Window
         _timer.Tick += (_, _) => Tick();
         _timer.Start();
         Tick();
+
+        _ = RefreshStartupItemAsync();
+    }
+
+    private async Task RefreshStartupItemAsync()
+    {
+        bool exists = await Task.Run(StartupTaskExists);
+        _startupItem.IsChecked = exists;
     }
 
     private async void Tick()
@@ -151,6 +161,14 @@ public partial class MainWindow : Window
     {
         if (_grip == 0) return;
 
+        // If the button came up without us seeing it, stop resizing rather than tracking
+        // the cursor with no button held.
+        if (e.LeftButton != MouseButtonState.Pressed)
+        {
+            EndResize(sender);
+            return;
+        }
+
         double delta = CursorX() - _dragStartCursorX;
         double width = Math.Clamp(_dragStartWidth + delta * _grip, MinWidth, MaxWidth);
 
@@ -162,24 +180,37 @@ public partial class MainWindow : Window
     private void Grip_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
         if (_grip == 0) return;
+        EndResize(sender);
+        e.Handled = true;
+    }
+
+    /// <summary>
+    /// Also wired to LostMouseCapture: Windows can take capture away mid-drag (Alt+Tab, a
+    /// system menu), and without this the widget would keep resizing on plain hover.
+    /// </summary>
+    private void Grip_LostMouseCapture(object sender, MouseEventArgs e) => EndResize(sender);
+
+    private void EndResize(object sender)
+    {
+        if (_grip == 0) return;
         _grip = 0;
-        ((FrameworkElement)sender).ReleaseMouseCapture();
+        if (sender is FrameworkElement grip && grip.IsMouseCaptured) grip.ReleaseMouseCapture();
 
         _settings.Width = Width;
         _settings.Left = Left;
         _settings.Save();
-        e.Handled = true;
     }
 
     // --- tray icon -------------------------------------------------------
 
     private void SetupTray()
     {
+        _trayIcon = MakeTrayIcon();
         _tray = new Forms.NotifyIcon
         {
             Visible = true,
             Text = "CPU Widget",
-            Icon = MakeTrayIcon(),
+            Icon = _trayIcon,
         };
         _tray.MouseClick += (_, e) =>
         {
@@ -230,7 +261,8 @@ public partial class MainWindow : Window
         string unit = MetricPanel.UseFahrenheit ? "°F" : "°C";
         static float Show(float c) => MetricPanel.UseFahrenheit ? c * 9f / 5f + 32f : c;
 
-        string tip = $"CPU {_lastCpu.Load ?? 0:0}%" +
+        // "--" rather than 0: an unknown load is not the same as an idle one.
+        string tip = (_lastCpu.Load is float load ? $"CPU {load:0}%" : "CPU --") +
                      (_lastCpu.Temp is float t ? $"  {Show(t):0}{unit}" : "");
         if (_monitor.GpuPresent && GpuPanel.LastTemp is float gt)
             tip += $"\nGPU {Show(gt):0}{unit}";
@@ -280,9 +312,11 @@ public partial class MainWindow : Window
         }
         menu.Items.Add(opacity);
 
-        var startup = new MenuItem { Header = "Start with Windows", IsCheckable = true, IsChecked = StartupTaskExists() };
-        startup.Click += (_, _) => SetStartupTask(startup.IsChecked);
-        menu.Items.Add(startup);
+        // Whether the task exists is resolved off-thread in OnLoaded; querying schtasks.exe
+        // synchronously here would stall window creation.
+        _startupItem = new MenuItem { Header = "Start with Windows", IsCheckable = true };
+        _startupItem.Click += (_, _) => SetStartupTask(_startupItem.IsChecked);
+        menu.Items.Add(_startupItem);
 
         menu.Items.Add(new Separator());
 
@@ -341,11 +375,27 @@ public partial class MainWindow : Window
         Top = wa.Top + 18;
     }
 
+    /// <summary>
+    /// Checks against the whole virtual desktop, not the primary monitor's work area —
+    /// otherwise a widget parked on a second monitor is dragged back to the primary on
+    /// every launch.
+    /// </summary>
     private void EnsureOnScreen()
     {
-        var wa = SystemParameters.WorkArea;
-        if (Left + Width < wa.Left + 40 || Left > wa.Right - 40 || Top < wa.Top - 10 || Top > wa.Bottom - 40)
-            ResetPosition();
+        double vLeft = SystemParameters.VirtualScreenLeft;
+        double vTop = SystemParameters.VirtualScreenTop;
+        double vRight = vLeft + SystemParameters.VirtualScreenWidth;
+        double vBottom = vTop + SystemParameters.VirtualScreenHeight;
+
+        // Height is measured by layout; fall back to a sane value if called before that.
+        double height = ActualHeight > 0 ? ActualHeight : 160;
+
+        // A sliver still on screen is fine; only fully (or nearly) lost windows get moved.
+        const double margin = 40;
+        bool offScreen = Left + Width < vLeft + margin || Left > vRight - margin
+                      || Top + height < vTop + margin || Top > vBottom - margin;
+
+        if (offScreen) ResetPosition();
     }
 
     private void OnClosing(object? sender, System.ComponentModel.CancelEventArgs e)
@@ -361,6 +411,7 @@ public partial class MainWindow : Window
             _tray.Visible = false;
             _tray.Dispose();
         }
+        _trayIcon?.Dispose();   // NotifyIcon doesn't own the icon it was handed
         _monitor.Dispose();
     }
 }

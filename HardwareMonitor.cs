@@ -13,6 +13,8 @@ public sealed class DeviceReading
     public float? ClockMhz;
     public float? PowerWatts;
     public float? MemoryUsedMb;   // GPU only
+    /// <summary>Why a value is missing, if it is. Recomputed every poll, so it never goes stale.</summary>
+    public string? Status;
 }
 
 /// <summary>
@@ -37,15 +39,26 @@ public sealed class HardwareMonitor : IDisposable
     private readonly UpdateVisitor _visitor = new();
     private bool _dumpedSensors;
 
+    /// <summary>
+    /// Guards the LibreHardwareMonitor handle. Polling runs on a thread-pool thread while
+    /// Dispose runs on the UI thread, and closing the driver mid-poll can fault natively.
+    /// </summary>
+    private readonly object _sync = new();
+
     public string CpuName { get; private set; } = "CPU";
     public string GpuName { get; private set; } = "";
     public bool GpuPresent { get; private set; }
-    /// <summary>Null when everything initialised cleanly, otherwise a short reason to show in the UI.</summary>
+    /// <summary>Null when the sensor library opened cleanly, otherwise why it didn't.</summary>
     public string? Status { get; private set; }
+
+    private static readonly bool Elevated = ComputeElevated();
 
     private static string LogPath => System.IO.Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
         "CpuWidget", "log.txt");
+
+    private const long MaxLogBytes = 256 * 1024;
+    private const int LogTailBytes = 64 * 1024;
 
     /// <summary>Appends a diagnostic line; never throws, never blocks the UI on failure.</summary>
     public static void Log(string message)
@@ -53,6 +66,16 @@ public sealed class HardwareMonitor : IDisposable
         try
         {
             System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(LogPath)!);
+
+            // Keep the log bounded: past a quarter megabyte, drop all but the recent tail.
+            var info = new System.IO.FileInfo(LogPath);
+            if (info.Exists && info.Length > MaxLogBytes)
+            {
+                string existing = System.IO.File.ReadAllText(LogPath);
+                string tail = existing.Length > LogTailBytes ? existing[^LogTailBytes..] : existing;
+                System.IO.File.WriteAllText(LogPath, "--- log truncated ---" + Environment.NewLine + tail);
+            }
+
             System.IO.File.AppendAllText(LogPath, $"{DateTime.Now:HH:mm:ss} {message}{Environment.NewLine}");
         }
         catch { /* logging must never take the widget down */ }
@@ -60,7 +83,7 @@ public sealed class HardwareMonitor : IDisposable
 
     public void Start()
     {
-        Log($"--- start, elevated={IsElevated()}, exe={Environment.ProcessPath}");
+        Log($"--- start, elevated={Elevated}, exe={Environment.ProcessPath}");
         try
         {
             _computer = new Computer { IsCpuEnabled = true, IsGpuEnabled = true };
@@ -84,10 +107,18 @@ public sealed class HardwareMonitor : IDisposable
         catch (Exception ex)
         {
             _computer = null;
-            Status = IsElevated() ? "sensor driver failed to load" : "run as Administrator for temperatures";
+            Status = Elevated ? "sensor driver failed to load" : "run as Administrator for temperatures";
             Log($"Open() FAILED: {ex}");
         }
     }
+
+    /// <summary>
+    /// Explains a missing temperature. LibreHardwareMonitor does not throw when its kernel
+    /// driver can't load — it opens normally and simply exposes no temperature sensors — so
+    /// an unelevated run has to be detected here rather than from an exception in Start().
+    /// </summary>
+    private static string MissingTempReason(string device) =>
+        Elevated ? $"no {device} temperature sensor" : "run as Administrator for temperatures";
 
     private static bool IsGpu(HardwareType t) =>
         t is HardwareType.GpuNvidia or HardwareType.GpuAmd or HardwareType.GpuIntel;
@@ -98,46 +129,58 @@ public sealed class HardwareMonitor : IDisposable
         var cpu = new DeviceReading { SecondaryLabel = "core max" };
         var gpu = new DeviceReading { SecondaryLabel = "hot spot" };
 
-        if (_computer is not null)
+        string? readError = null;
+
+        lock (_sync)
         {
-            try
+            if (_computer is not null)
             {
-                _computer.Accept(_visitor);
-
-                foreach (var hw in _computer.Hardware)
+                try
                 {
-                    if (hw.HardwareType == HardwareType.Cpu) ReadCpu(hw, cpu);
-                    else if (IsGpu(hw.HardwareType)) ReadGpu(hw, gpu);
-                }
+                    _computer.Accept(_visitor);
 
-                if (!_dumpedSensors)
-                {
-                    _dumpedSensors = true;
                     foreach (var hw in _computer.Hardware)
                     {
-                        if (hw.HardwareType != HardwareType.Cpu && !IsGpu(hw.HardwareType)) continue;
-                        Log($"  [{hw.HardwareType}] {hw.Name}");
-                        foreach (var s in hw.Sensors)
-                            Log($"    {s.SensorType,-12} {s.Name,-30} = {(s.Value.HasValue ? s.Value.Value.ToString("0.##") : "<null>")}");
+                        if (hw.HardwareType == HardwareType.Cpu) ReadCpu(hw, cpu);
+                        else if (IsGpu(hw.HardwareType)) ReadGpu(hw, gpu);
                     }
-                }
 
-                // Some parts expose only per-core temps, others only a package temp.
-                cpu.Temp ??= cpu.SecondaryTemp;
-                cpu.SecondaryTemp ??= cpu.Temp;
-            }
-            catch (Exception ex)
-            {
-                // Don't kill the widget over a transient read failure, but never fail
-                // silently either — a swallowed exception here reads as "no temperature".
-                Status = ex.GetType().Name + ": " + ex.Message;
-                Log($"Read() FAILED: {ex}");
+                    if (!_dumpedSensors)
+                    {
+                        _dumpedSensors = true;
+                        foreach (var hw in _computer.Hardware)
+                        {
+                            if (hw.HardwareType != HardwareType.Cpu && !IsGpu(hw.HardwareType)) continue;
+                            Log($"  [{hw.HardwareType}] {hw.Name}");
+                            foreach (var s in hw.Sensors)
+                                Log($"    {s.SensorType,-12} {s.Name,-30} = {(s.Value.HasValue ? s.Value.Value.ToString("0.##") : "<null>")}");
+                        }
+                    }
+
+                    // Some parts expose only per-core temps, others only a package temp.
+                    cpu.Temp ??= cpu.SecondaryTemp;
+                    cpu.SecondaryTemp ??= cpu.Temp;
+                    gpu.Temp ??= gpu.SecondaryTemp;
+                    gpu.SecondaryTemp ??= gpu.Temp;
+                }
+                catch (Exception ex)
+                {
+                    // Don't kill the widget over a transient read failure, but never fail
+                    // silently either — a swallowed exception here reads as "no temperature".
+                    // Kept per-poll rather than sticky, so one blip doesn't poison the footer.
+                    readError = ex.GetType().Name + ": " + ex.Message;
+                    Log($"Read() FAILED: {ex}");
+                }
             }
         }
 
         // LHM's "CPU Total" load sensor reads 0 on some systems even under real load,
         // so total CPU usage always comes from the kernel tick counters instead.
         cpu.Load = ReadLoadFallback();
+
+        cpu.Status = Status ?? readError ?? (cpu.Temp is null ? MissingTempReason("CPU") : null);
+        gpu.Status = Status ?? readError ?? (GpuPresent && gpu.Temp is null ? MissingTempReason("GPU") : null);
+
         return (cpu, gpu);
     }
 
@@ -252,7 +295,7 @@ public sealed class HardwareMonitor : IDisposable
         return result;
     }
 
-    private static bool IsElevated()
+    private static bool ComputeElevated()
     {
         using var id = System.Security.Principal.WindowsIdentity.GetCurrent();
         return new System.Security.Principal.WindowsPrincipal(id)
@@ -266,7 +309,11 @@ public sealed class HardwareMonitor : IDisposable
 
     public void Dispose()
     {
-        try { _computer?.Close(); } catch { /* driver already unloaded */ }
-        _computer = null;
+        // Waits for an in-flight poll rather than pulling the driver out from under it.
+        lock (_sync)
+        {
+            try { _computer?.Close(); } catch { /* driver already unloaded */ }
+            _computer = null;
+        }
     }
 }

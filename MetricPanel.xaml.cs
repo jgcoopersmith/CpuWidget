@@ -26,9 +26,6 @@ public partial class MetricPanel : UserControl
         ? MinSamples
         : Math.Clamp((int)(_graphWidth / PixelsPerSample), MinSamples, MaxSamples);
 
-    /// <summary>History span currently visible, in seconds.</summary>
-    public int WindowSeconds => Capacity;
-
     private readonly List<DeviceReading> _history = new();
     private DeviceReading? _last;
     private double _graphWidth, _graphHeight;
@@ -119,14 +116,18 @@ public partial class MetricPanel : UserControl
         ClockTextBlock.Text = r.ClockMhz is float mhz ? $"{mhz / 1000f:0.00} GHz" : "";
 
         // A missing temperature always has a reason — show it rather than a bare "--".
-        if (r.Temp is null && StatusMessage is string status)
+        // The reading carries its own reason; StatusMessage is only a startup-time fallback.
+        if (r.Temp is null && (r.Status ?? StatusMessage) is string status)
         {
             DetailText.Text = status;
         }
         else
         {
             var parts = new List<string>();
-            if (r.SecondaryTemp is float second && r.Temp is float primary && Math.Abs(second - primary) >= 1)
+            // Compare what will actually be printed: a 1°C gap can round to the same °F,
+            // which would show the secondary temperature as a duplicate of the primary.
+            if (r.SecondaryTemp is float second && r.Temp is float primary &&
+                Math.Round(ToDisplay(second)) != Math.Round(ToDisplay(primary)))
                 parts.Add($"{r.SecondaryLabel} {ToDisplay(second):0}°");
             if (r.MemoryUsedMb is float mb) parts.Add($"{mb / 1024f:0.0} GB");
             if (r.PowerWatts is float w) parts.Add($"{w:0} W");
