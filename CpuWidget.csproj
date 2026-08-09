@@ -12,6 +12,8 @@
     <PlatformTarget>x64</PlatformTarget>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>app.ico</ApplicationIcon>
+    <!-- Keep in step with AppVersion.Display, which the widget shows. -->
+    <Version>1.0.51</Version>
   </PropertyGroup>
 
   <ItemGroup>

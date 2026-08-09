@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:CpuWidget"
         Title="CPU Widget"
-        Width="300" MinWidth="260" MaxWidth="1600" SizeToContent="Height"
+        Width="300" MinWidth="150" MaxWidth="1600" SizeToContent="Height"
         WindowStyle="None" ResizeMode="NoResize"
         AllowsTransparency="True" Background="Transparent"
         ShowInTaskbar="False" Topmost="True"
@@ -45,6 +45,10 @@
                 <Border x:Name="Divider" Height="1" Background="#1AFFFFFF" Margin="0,9,0,8" />
 
                 <local:MetricPanel x:Name="GpuPanel" Title="GPU" Accent="#A78BFA" />
+
+                <TextBlock x:Name="VersionText" Text="v.0.000" FontSize="8"
+                           Foreground="#8FA0B4" Opacity="0.35"
+                           HorizontalAlignment="Right" Margin="0,3,0,-2" />
             </StackPanel>
 
             <!-- resize grips -->

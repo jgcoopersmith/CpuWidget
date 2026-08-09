@@ -32,6 +32,8 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
 
+        VersionText.Text = AppVersion.Display;
+
         Topmost = _settings.AlwaysOnTop;
         Opacity = _settings.Opacity;
         MetricPanel.UseFahrenheit = _settings.Fahrenheit;
