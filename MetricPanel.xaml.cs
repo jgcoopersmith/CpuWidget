@@ -41,6 +41,39 @@ public partial class MetricPanel : UserControl
         InitializeComponent();
     }
 
+    /// <summary>
+    /// Scales every piece of text and spacing so the panel can shrink below the size its
+    /// fonts would otherwise pin it to. 1.0 is the design size.
+    /// </summary>
+    public void ApplyScale(double s)
+    {
+        TitleText.FontSize = Math.Max(5, 10 * s);
+        DeviceNameText.FontSize = Math.Max(5, 10 * s);
+        UsageText.FontSize = Math.Max(7, 27 * s);
+        UsageUnitText.FontSize = Math.Max(5, 12 * s);
+        TempText.FontSize = Math.Max(7, 27 * s);
+        TempUnitText.FontSize = Math.Max(5, 12 * s);
+        ClockTextBlock.FontSize = Math.Max(5, 10 * s);
+        DetailText.FontSize = Math.Max(5, 10 * s);
+
+        UsageUnitText.Margin = new Thickness(2 * s, 0, 0, 5 * s);
+        TempUnitText.Margin = new Thickness(2 * s, 0, 0, 5 * s);
+
+        GraphRow.MinHeight = Math.Max(8, 26 * s);
+        GraphBorder.Margin = new Thickness(0, 4 * s, 0, 3 * s);
+        GraphBorder.CornerRadius = new CornerRadius(5 * s);
+
+        // Below this the supporting text is too small to read, so it becomes noise around
+        // the numbers that still matter. Drop it and give the graph the room instead.
+        var detail = s >= DetailThreshold ? Visibility.Visible : Visibility.Collapsed;
+        DeviceNameText.Visibility = detail;
+        ClockTextBlock.Visibility = detail;
+        DetailText.Visibility = detail;
+    }
+
+    /// <summary>Scale below which the device name, clock and footer detail are hidden.</summary>
+    public const double DetailThreshold = 0.62;
+
     /// <summary>Device label shown top-left, e.g. "CPU".</summary>
     public string Title
     {

@@ -65,12 +65,15 @@ public partial class MainWindow : Window
             GpuPanel.Visibility = Visibility.Collapsed;
             Divider.Visibility = Visibility.Collapsed;
             GpuRow.Height = new GridLength(0);   // a starred row would still reserve space
-            MinHeight = 110;
+            MinHeight = 52;
             Height = Math.Max(MinHeight, Height / 2);
         }
 
         if (_settings.Width is double w) Width = Math.Clamp(w, MinWidth, MaxWidth);
         if (_settings.Height is double h) Height = Math.Clamp(h, MinHeight, MaxHeight);
+
+        ApplyScale();
+        SizeChanged += (_, _) => ApplyScale();
 
         // Position after layout so the measured height is known.
         if (_settings.Left is double l && _settings.Top is double t)
@@ -130,6 +133,38 @@ public partial class MainWindow : Window
         }
     }
 
+    // --- scaling ----------------------------------------------------------
+
+    // The size everything is drawn at 1:1. Shrinking below this scales the text down
+    // rather than letting fixed font sizes set a floor on how small the widget can get.
+    private const double DesignWidth = 300;
+    private const double DesignPanelHeight = 131;   // one device section at 1:1
+    private const double MinScale = 0.28;
+
+    private void ApplyScale()
+    {
+        if (ActualWidth <= 0 || ActualHeight <= 0) return;
+
+        double panels = _monitor.GpuPresent ? 2 : 1;
+        double designHeight = DesignPanelHeight * panels + 25;   // + divider and version line
+
+        // Uniform: whichever axis is tighter decides, so text never outgrows its box.
+        double scale = Math.Clamp(
+            Math.Min(ActualWidth / DesignWidth, ActualHeight / designHeight), MinScale, 1.0);
+
+        ContentGrid.Margin = new Thickness(14 * scale, 9 * scale, 14 * scale, 8 * scale);
+        RootBorder.CornerRadius = new CornerRadius(14 * scale);
+        Divider.Margin = new Thickness(0, 9 * scale, 0, 8 * scale);
+        VersionText.FontSize = Math.Max(4, 8 * scale);
+        VersionText.Margin = new Thickness(0, 3 * scale, 0, -1);
+        VersionText.Visibility = scale >= MetricPanel.DetailThreshold
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+
+        CpuPanel.ApplyScale(scale);
+        GpuPanel.ApplyScale(scale);
+    }
+
     // --- resizing from every edge and corner ------------------------------
 
     // The window is borderless, so Windows has no frame to hit-test. Reporting the border
@@ -137,6 +172,13 @@ public partial class MainWindow : Window
     // cursors and Aero snap along with it.
     private const int WM_NCHITTEST = 0x0084;
     private const int WM_EXITSIZEMOVE = 0x0232;
+    private const int WM_GETMINMAXINFO = 0x0024;
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MinMaxInfo
+    {
+        public System.Drawing.Point Reserved, MaxSize, MaxPosition, MinTrackSize, MaxTrackSize;
+    }
 
     private const int HTCLIENT = 1, HTLEFT = 10, HTRIGHT = 11, HTTOP = 12, HTTOPLEFT = 13,
                       HTTOPRIGHT = 14, HTBOTTOM = 15, HTBOTTOMLEFT = 16, HTBOTTOMRIGHT = 17;
@@ -163,6 +205,20 @@ public partial class MainWindow : Window
                     return new IntPtr(hit);
                 }
                 break;
+
+            case WM_GETMINMAXINFO:
+                // Windows applies these limits in device pixels, so on a 200% display the
+                // XAML values would let the widget shrink to half the intended floor.
+                var info = Marshal.PtrToStructure<MinMaxInfo>(lParam);
+                var toDevice = PresentationSource.FromVisual(this)?.CompositionTarget?.TransformToDevice;
+                double sx = toDevice?.M11 ?? 1.0, sy = toDevice?.M22 ?? 1.0;
+                info.MinTrackSize = new System.Drawing.Point(
+                    (int)Math.Ceiling(MinWidth * sx), (int)Math.Ceiling(MinHeight * sy));
+                info.MaxTrackSize = new System.Drawing.Point(
+                    (int)Math.Floor(MaxWidth * sx), (int)Math.Floor(MaxHeight * sy));
+                Marshal.StructureToPtr(info, lParam, true);
+                handled = true;
+                return IntPtr.Zero;
 
             case WM_EXITSIZEMOVE:
                 // Fired once when a drag or resize finishes, rather than on every pixel.

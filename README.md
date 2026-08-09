@@ -22,7 +22,11 @@ unelevated and you'll get usage only — everything else shows `--`.
   pixels: the graphs hold one sample per 3 px, so 300 px shows about 90 seconds and 900 px
   about 5 minutes. Making it taller gives the graphs more vertical room, so small
   movements in load and temperature are easier to read. Size is remembered.
-  Range 150–1600 px wide, 180–1400 px tall.
+  Range 84–1600 px wide, 84–1400 px tall.
+- **Text scales with the window**, so fonts don't put a floor under how small it can get.
+  Below ~62% scale the device name, clock and footer detail hide themselves — at that size
+  they're unreadable anyway — leaving the labels, the load and temperature figures, and
+  the graphs.
 - **Right-click** for: always-on-top toggle, **°C / °F**, opacity, *Start with Windows*,
   reset position, exit. The unit choice applies instantly and is remembered.
 - **Tray icon** is the thermostat dial. Hover for CPU load / temperature and GPU temperature;
