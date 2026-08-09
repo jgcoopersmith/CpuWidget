@@ -3,72 +3,35 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:CpuWidget"
         Title="CPU Widget"
-        Width="300" MinWidth="150" MaxWidth="1600" SizeToContent="Height"
-        WindowStyle="None" ResizeMode="NoResize"
+        Width="300" MinWidth="150" MaxWidth="1600"
+        Height="270" MinHeight="180" MaxHeight="1400"
+        WindowStyle="None" ResizeMode="CanResize"
         AllowsTransparency="True" Background="Transparent"
         ShowInTaskbar="False" Topmost="True"
         UseLayoutRounding="True" TextOptions.TextFormattingMode="Display">
-
-    <Window.Resources>
-        <!-- Thin invisible strip along each edge; hints with a faint bar on hover. -->
-        <Style x:Key="GripStyle" TargetType="Border">
-            <Setter Property="Width" Value="8" />
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Cursor" Value="SizeWE" />
-        </Style>
-
-        <Style x:Key="GripHintStyle" TargetType="Rectangle">
-            <Setter Property="Width" Value="2" />
-            <Setter Property="RadiusX" Value="1" />
-            <Setter Property="RadiusY" Value="1" />
-            <Setter Property="Fill" Value="#44FFFFFF" />
-            <Setter Property="Margin" Value="0,14" />
-            <Setter Property="Opacity" Value="0" />
-            <Style.Triggers>
-                <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Border}}"
-                             Value="True">
-                    <Setter Property="Opacity" Value="1" />
-                </DataTrigger>
-            </Style.Triggers>
-        </Style>
-    </Window.Resources>
 
     <Border CornerRadius="14" Background="#EE0E1116" BorderBrush="#22FFFFFF" BorderThickness="1">
         <Border.Effect>
             <DropShadowEffect BlurRadius="18" ShadowDepth="0" Opacity="0.55" Color="Black" />
         </Border.Effect>
 
-        <Grid>
-            <StackPanel Margin="16,9,16,10">
-                <local:MetricPanel x:Name="CpuPanel" Title="CPU" Accent="#5AA9FF" />
+        <Grid Margin="14,9,14,8">
+            <Grid.RowDefinitions>
+                <RowDefinition x:Name="CpuRow" Height="*" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition x:Name="GpuRow" Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
 
-                <Border x:Name="Divider" Height="1" Background="#1AFFFFFF" Margin="0,9,0,8" />
+            <local:MetricPanel x:Name="CpuPanel" Grid.Row="0" Title="CPU" Accent="#5AA9FF" />
 
-                <local:MetricPanel x:Name="GpuPanel" Title="GPU" Accent="#A78BFA" />
+            <Border x:Name="Divider" Grid.Row="1" Height="1" Background="#1AFFFFFF" Margin="0,9,0,8" />
 
-                <TextBlock x:Name="VersionText" Text="v.0.000" FontSize="8"
-                           Foreground="#8FA0B4" Opacity="0.35"
-                           HorizontalAlignment="Right" Margin="0,3,0,-2" />
-            </StackPanel>
+            <local:MetricPanel x:Name="GpuPanel" Grid.Row="2" Title="GPU" Accent="#A78BFA" />
 
-            <!-- resize grips -->
-            <Border x:Name="LeftGrip" Style="{StaticResource GripStyle}" Tag="L"
-                    HorizontalAlignment="Left"
-                    MouseLeftButtonDown="Grip_MouseLeftButtonDown"
-                    MouseMove="Grip_MouseMove"
-                    MouseLeftButtonUp="Grip_MouseLeftButtonUp"
-                    LostMouseCapture="Grip_LostMouseCapture">
-                <Rectangle Style="{StaticResource GripHintStyle}" />
-            </Border>
-
-            <Border x:Name="RightGrip" Style="{StaticResource GripStyle}" Tag="R"
-                    HorizontalAlignment="Right"
-                    MouseLeftButtonDown="Grip_MouseLeftButtonDown"
-                    MouseMove="Grip_MouseMove"
-                    MouseLeftButtonUp="Grip_MouseLeftButtonUp"
-                    LostMouseCapture="Grip_LostMouseCapture">
-                <Rectangle Style="{StaticResource GripHintStyle}" />
-            </Border>
+            <TextBlock x:Name="VersionText" Grid.Row="3" Text="v.0.000" FontSize="8"
+                       Foreground="#8FA0B4" Opacity="0.35"
+                       HorizontalAlignment="Right" Margin="0,3,0,-1" />
         </Grid>
     </Border>
 </Window>

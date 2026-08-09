@@ -6,7 +6,8 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
+            <!-- the graph takes whatever height is left, so a taller widget means taller graphs -->
+            <RowDefinition Height="*" MinHeight="26" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
@@ -41,7 +42,7 @@
         </Grid>
 
         <!-- history graph -->
-        <Border Grid.Row="2" Height="40" Margin="0,4,0,3" CornerRadius="5" Background="#14FFFFFF"
+        <Border Grid.Row="2" Margin="0,4,0,3" CornerRadius="5" Background="#14FFFFFF"
                 ClipToBounds="True" SizeChanged="Graph_SizeChanged">
             <Canvas>
                 <Polygon x:Name="UsageFill" />

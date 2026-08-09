@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Threading;
 using Drawing = System.Drawing;
 using Forms = System.Windows.Forms;
@@ -63,9 +64,13 @@ public partial class MainWindow : Window
             // rather than showing a row of dashes.
             GpuPanel.Visibility = Visibility.Collapsed;
             Divider.Visibility = Visibility.Collapsed;
+            GpuRow.Height = new GridLength(0);   // a starred row would still reserve space
+            MinHeight = 110;
+            Height = Math.Max(MinHeight, Height / 2);
         }
 
         if (_settings.Width is double w) Width = Math.Clamp(w, MinWidth, MaxWidth);
+        if (_settings.Height is double h) Height = Math.Clamp(h, MinHeight, MaxHeight);
 
         // Position after layout so the measured height is known.
         if (_settings.Left is double l && _settings.Top is double t)
@@ -125,82 +130,77 @@ public partial class MainWindow : Window
         }
     }
 
-    // --- edge resizing ---------------------------------------------------
+    // --- resizing from every edge and corner ------------------------------
 
-    private int _grip;              // -1 dragging the left edge, +1 the right, 0 idle
-    private double _dragStartLeft, _dragStartWidth, _dragStartCursorX;
+    // The window is borderless, so Windows has no frame to hit-test. Reporting the border
+    // codes ourselves hands resizing back to the OS, which brings corners, the proper
+    // cursors and Aero snap along with it.
+    private const int WM_NCHITTEST = 0x0084;
+    private const int WM_EXITSIZEMOVE = 0x0232;
 
-    [StructLayout(LayoutKind.Sequential)]
-    private struct POINT { public int X, Y; }
+    private const int HTCLIENT = 1, HTLEFT = 10, HTRIGHT = 11, HTTOP = 12, HTTOPLEFT = 13,
+                      HTTOPRIGHT = 14, HTBOTTOM = 15, HTBOTTOMLEFT = 16, HTBOTTOMRIGHT = 17;
 
-    [DllImport("user32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool GetCursorPos(out POINT p);
+    /// <summary>Thickness of the grab band along each edge, in device-independent units.</summary>
+    private const double GripBand = 7;
 
-    /// <summary>
-    /// Cursor X in device-independent units. Read from the screen rather than from mouse-event
-    /// coordinates: those are relative to the window, which moves while the left edge is dragged.
-    /// </summary>
-    private double CursorX()
+    protected override void OnSourceInitialized(EventArgs e)
     {
-        if (!GetCursorPos(out var p)) return _dragStartCursorX;
-        var transform = PresentationSource.FromVisual(this)?.CompositionTarget?.TransformFromDevice;
-        return transform is Matrix m ? m.Transform(new Point(p.X, p.Y)).X : p.X;
+        base.OnSourceInitialized(e);
+        if (PresentationSource.FromVisual(this) is HwndSource source)
+            source.AddHook(WndProc);
     }
 
-    private void Grip_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
-        var grip = (FrameworkElement)sender;
-        _grip = (string)grip.Tag == "L" ? -1 : 1;
-        _dragStartLeft = Left;
-        _dragStartWidth = ActualWidth;
-        _dragStartCursorX = CursorX();
-        grip.CaptureMouse();
-        e.Handled = true;   // don't let the window-drag handler start moving the widget
-    }
-
-    private void Grip_MouseMove(object sender, MouseEventArgs e)
-    {
-        if (_grip == 0) return;
-
-        // If the button came up without us seeing it, stop resizing rather than tracking
-        // the cursor with no button held.
-        if (e.LeftButton != MouseButtonState.Pressed)
+        switch (msg)
         {
-            EndResize(sender);
-            return;
+            case WM_NCHITTEST:
+                int hit = HitTest(lParam);
+                if (hit != HTCLIENT)
+                {
+                    handled = true;
+                    return new IntPtr(hit);
+                }
+                break;
+
+            case WM_EXITSIZEMOVE:
+                // Fired once when a drag or resize finishes, rather than on every pixel.
+                _settings.Left = Left;
+                _settings.Top = Top;
+                _settings.Width = Width;
+                _settings.Height = Height;
+                _settings.Save();
+                break;
         }
-
-        double delta = CursorX() - _dragStartCursorX;
-        double width = Math.Clamp(_dragStartWidth + delta * _grip, MinWidth, MaxWidth);
-
-        // Dragging the left edge keeps the right edge pinned.
-        if (_grip < 0) Left = _dragStartLeft + (_dragStartWidth - width);
-        Width = width;
+        return IntPtr.Zero;
     }
 
-    private void Grip_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    private int HitTest(IntPtr lParam)
     {
-        if (_grip == 0) return;
-        EndResize(sender);
-        e.Handled = true;
-    }
+        // lParam packs signed screen coordinates; they must stay signed for monitors
+        // positioned left of or above the primary one.
+        long raw = lParam.ToInt64();
+        var screen = new Point((short)(raw & 0xFFFF), (short)((raw >> 16) & 0xFFFF));
 
-    /// <summary>
-    /// Also wired to LostMouseCapture: Windows can take capture away mid-drag (Alt+Tab, a
-    /// system menu), and without this the widget would keep resizing on plain hover.
-    /// </summary>
-    private void Grip_LostMouseCapture(object sender, MouseEventArgs e) => EndResize(sender);
+        Point p;
+        try { p = PointFromScreen(screen); }
+        catch { return HTCLIENT; }   // no source yet
 
-    private void EndResize(object sender)
-    {
-        if (_grip == 0) return;
-        _grip = 0;
-        if (sender is FrameworkElement grip && grip.IsMouseCaptured) grip.ReleaseMouseCapture();
+        bool left = p.X <= GripBand;
+        bool right = p.X >= ActualWidth - GripBand;
+        bool top = p.Y <= GripBand;
+        bool bottom = p.Y >= ActualHeight - GripBand;
 
-        _settings.Width = Width;
-        _settings.Left = Left;
-        _settings.Save();
+        if (top && left) return HTTOPLEFT;
+        if (top && right) return HTTOPRIGHT;
+        if (bottom && left) return HTBOTTOMLEFT;
+        if (bottom && right) return HTBOTTOMRIGHT;
+        if (left) return HTLEFT;
+        if (right) return HTRIGHT;
+        if (top) return HTTOP;
+        if (bottom) return HTBOTTOM;
+        return HTCLIENT;
     }
 
     // --- tray icon -------------------------------------------------------
@@ -406,6 +406,7 @@ public partial class MainWindow : Window
         _settings.Left = Left;
         _settings.Top = Top;
         _settings.Width = Width;
+        _settings.Height = Height;
         _settings.Save();
 
         if (_tray is not null)

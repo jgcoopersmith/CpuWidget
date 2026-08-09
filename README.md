@@ -18,10 +18,11 @@ unelevated and you'll get usage only — everything else shows `--`.
 ## Controls
 
 - **Drag** anywhere on the widget to move it. Position is remembered.
-- **Drag the left or right edge** to widen it. A faint bar appears on hover to mark the grip.
-  Widening buys more *history* rather than wider pixels: the graphs hold one sample per
-  3 px, so 300 px shows about 90 seconds and 900 px about 5 minutes. Width is remembered,
-  and dragging the left edge keeps the right edge pinned. Range 260–1600 px.
+- **Drag any edge or corner** to resize. Widening buys more *history* rather than wider
+  pixels: the graphs hold one sample per 3 px, so 300 px shows about 90 seconds and 900 px
+  about 5 minutes. Making it taller gives the graphs more vertical room, so small
+  movements in load and temperature are easier to read. Size is remembered.
+  Range 150–1600 px wide, 180–1400 px tall.
 - **Right-click** for: always-on-top toggle, **°C / °F**, opacity, *Start with Windows*,
   reset position, exit. The unit choice applies instantly and is remembered.
 - **Tray icon** is the thermostat dial. Hover for CPU load / temperature and GPU temperature;
