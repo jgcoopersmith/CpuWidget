@@ -146,7 +146,8 @@ public partial class MainWindow : Window
         if (ActualWidth <= 0 || ActualHeight <= 0) return;
 
         double panels = _monitor.GpuPresent ? 2 : 1;
-        double designHeight = DesignPanelHeight * panels + 25;   // + divider and version line
+        // + title bar, divider and version line
+        double designHeight = DesignPanelHeight * panels + 43;
 
         // Uniform: whichever axis is tighter decides, so text never outgrows its box.
         double scale = Math.Clamp(
@@ -154,6 +155,13 @@ public partial class MainWindow : Window
 
         ContentGrid.Margin = new Thickness(14 * scale, 9 * scale, 14 * scale, 8 * scale);
         RootBorder.CornerRadius = new CornerRadius(14 * scale);
+
+        TitleBar.FontSize = Math.Max(5, 11 * scale);
+        TitleBar.Margin = new Thickness(0, 0, 0, 4 * scale);
+        TitleBar.Visibility = scale >= MetricPanel.DetailThreshold
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+
         Divider.Margin = new Thickness(0, 9 * scale, 0, 8 * scale);
         VersionText.FontSize = Math.Max(4, 8 * scale);
         VersionText.Margin = new Thickness(0, 3 * scale, 0, -1);

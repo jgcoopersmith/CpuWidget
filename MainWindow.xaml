@@ -18,19 +18,25 @@
 
         <Grid x:Name="ContentGrid" Margin="14,9,14,8">
             <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
                 <RowDefinition x:Name="CpuRow" Height="*" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition x:Name="GpuRow" Height="*" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <local:MetricPanel x:Name="CpuPanel" Grid.Row="0" Title="CPU" Accent="#5AA9FF" />
+            <TextBlock x:Name="TitleBar" Grid.Row="0" Text="j0ker's CPU Widget"
+                       FontSize="11" FontWeight="SemiBold" Foreground="#FFD700"
+                       HorizontalAlignment="Center" Margin="0,0,0,4"
+                       TextTrimming="CharacterEllipsis" />
 
-            <Border x:Name="Divider" Grid.Row="1" Height="1" Background="#1AFFFFFF" Margin="0,9,0,8" />
+            <local:MetricPanel x:Name="CpuPanel" Grid.Row="1" Title="CPU" Accent="#5AA9FF" />
 
-            <local:MetricPanel x:Name="GpuPanel" Grid.Row="2" Title="GPU" Accent="#A78BFA" />
+            <Border x:Name="Divider" Grid.Row="2" Height="1" Background="#1AFFFFFF" Margin="0,9,0,8" />
 
-            <TextBlock x:Name="VersionText" Grid.Row="3" Text="v.0.000" FontSize="8"
+            <local:MetricPanel x:Name="GpuPanel" Grid.Row="3" Title="GPU" Accent="#A78BFA" />
+
+            <TextBlock x:Name="VersionText" Grid.Row="4" Text="v.0.000" FontSize="8"
                        Foreground="#8FA0B4" Opacity="0.35"
                        HorizontalAlignment="Right" Margin="0,3,0,-1" />
         </Grid>

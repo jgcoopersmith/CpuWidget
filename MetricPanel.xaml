@@ -14,7 +14,7 @@
         <!-- header: device label + device name -->
         <DockPanel Grid.Row="0">
             <TextBlock x:Name="TitleText" Text="CPU" FontSize="10" FontWeight="SemiBold"
-                       Foreground="#8FA0B4" Opacity="0.9" />
+                       Foreground="#FFFFFF" />
             <TextBlock x:Name="DeviceNameText" DockPanel.Dock="Right" HorizontalAlignment="Right"
                        Text="" FontSize="10" Foreground="#8FA0B4" Opacity="0.55"
                        TextTrimming="CharacterEllipsis" />
