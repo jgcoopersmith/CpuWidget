@@ -197,11 +197,42 @@ public partial class MainWindow : Window
     /// <summary>Thickness of the grab band along each edge, in device-independent units.</summary>
     private const double GripBand = 7;
 
+    // Windows 11 draws its own 1px frame around a window with a sizing border, squared off
+    // at the corners and light grey in the light theme. The widget paints its own rounded
+    // card, so that frame only ever shows as grey nicks at the four corners.
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
+
+    private const int DWMWA_WINDOW_CORNER_PREFERENCE = 33;
+    private const int DWMWA_BORDER_COLOR = 34;
+    private const int DWMWCP_DONOTROUND = 1;
+    private const int DWMWA_COLOR_NONE = unchecked((int)0xFFFFFFFE);
+
+    private static void SuppressSystemFrame(IntPtr hwnd)
+    {
+        try
+        {
+            int none = DWMWA_COLOR_NONE;
+            DwmSetWindowAttribute(hwnd, DWMWA_BORDER_COLOR, ref none, sizeof(int));
+
+            // Don't let DWM round it either — the card's own corners are the ones that show.
+            int square = DWMWCP_DONOTROUND;
+            DwmSetWindowAttribute(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, ref square, sizeof(int));
+        }
+        catch (EntryPointNotFoundException)
+        {
+            // Older Windows: no such attributes, and no frame to suppress.
+        }
+    }
+
     protected override void OnSourceInitialized(EventArgs e)
     {
         base.OnSourceInitialized(e);
         if (PresentationSource.FromVisual(this) is HwndSource source)
+        {
             source.AddHook(WndProc);
+            SuppressSystemFrame(source.Handle);
+        }
     }
 
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
