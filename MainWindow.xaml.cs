@@ -344,6 +344,20 @@ public partial class MainWindow : Window
     private const string DefaultCpuAccent = "#5AA9FF";
     private const string DefaultGpuAccent = "#A78BFA";
     private const string DefaultBackground = "#EE0E1116";
+    private const string DefaultTempCool = "#62D095";
+    private const string DefaultTempWarm = "#FFB04D";
+    private const string DefaultTempHot = "#FF7A45";
+    private const string DefaultTempCritical = "#FF4D4D";
+
+    /// <summary>Whole-ramp presets, applied to all four temperature bands at once.</summary>
+    private static readonly (string Name, string Cool, string Warm, string Hot, string Critical)[] RampPresets =
+    {
+        ("Classic", DefaultTempCool, DefaultTempWarm, DefaultTempHot, DefaultTempCritical),
+        ("Fire", "#FFE066", "#FFB020", "#FF6B2C", "#E52020"),
+        ("Ice", "#7FE3F0", "#45C8DE", "#3D8FD6", "#3A4FCF"),
+        ("Neon", "#39FF88", "#C9FF3D", "#FF9F1C", "#FF2E88"),
+        ("Mono", "#9AA6B4", "#C3CCD8", "#E4EAF1", "#FFFFFF"),
+    };
 
     private static readonly (string Name, string Hex)[] Palette =
     {
@@ -373,13 +387,30 @@ public partial class MainWindow : Window
     private static Media.SolidColorBrush MakeBrush(string hex) =>
         new((Media.Color)Media.ColorConverter.ConvertFromString(hex)!);
 
+    private static Media.Color ParseColor(string hex) =>
+        (Media.Color)Media.ColorConverter.ConvertFromString(hex)!;
+
     private void ApplyColors()
     {
         TitleBar.Foreground = MakeBrush(_settings.TitleColor ?? DefaultTitleColor);
         CpuPanel.Accent = MakeBrush(_settings.CpuAccent ?? DefaultCpuAccent);
         GpuPanel.Accent = MakeBrush(_settings.GpuAccent ?? DefaultGpuAccent);
         RootBorder.Background = MakeBrush(_settings.Background ?? DefaultBackground);
+
+        MetricPanel.CoolColor = ParseColor(_settings.TempCool ?? DefaultTempCool);
+        MetricPanel.WarmColor = ParseColor(_settings.TempWarm ?? DefaultTempWarm);
+        MetricPanel.HotColor = ParseColor(_settings.TempHot ?? DefaultTempHot);
+        MetricPanel.CriticalColor = ParseColor(_settings.TempCritical ?? DefaultTempCritical);
+
+        // Repaint the temperature figures and their graph lines with the new ramp.
+        CpuPanel.Refresh();
+        GpuPanel.Refresh();
     }
+
+    /// <summary>Threshold label in whatever unit is on display.</summary>
+    private static string Deg(float celsius) => MetricPanel.UseFahrenheit
+        ? $"{celsius * 9 / 5 + 32:0}°F"
+        : $"{celsius:0}°C";
 
     private MenuItem BuildColorMenu(string header, (string, string)[] palette,
                                     Func<string> get, Action<string> set)
@@ -412,6 +443,26 @@ public partial class MainWindow : Window
         RadiusX = 2,
         RadiusY = 2,
     };
+
+    /// <summary>A four-band strip previewing a whole ramp preset.</summary>
+    private static System.Windows.Controls.StackPanel RampSwatch(
+        (string Name, string Cool, string Warm, string Hot, string Critical) preset)
+    {
+        var strip = new System.Windows.Controls.StackPanel
+        {
+            Orientation = System.Windows.Controls.Orientation.Horizontal,
+        };
+        foreach (var hex in new[] { preset.Cool, preset.Warm, preset.Hot, preset.Critical })
+        {
+            strip.Children.Add(new System.Windows.Shapes.Rectangle
+            {
+                Width = 4,
+                Height = 12,
+                Fill = MakeBrush(hex),
+            });
+        }
+        return strip;
+    }
 
     private void Choose(Action<string> set, string hex)
     {
@@ -491,6 +542,40 @@ public partial class MainWindow : Window
         colors.Items.Add(BuildColorMenu("Background", BackgroundPalette,
             () => _settings.Background ?? DefaultBackground, v => _settings.Background = v));
 
+        // The temperature figures change colour with the reading, so the whole ramp is
+        // configurable — as a set of presets, or band by band.
+        var ramp = new MenuItem { Header = "Temperature scale" };
+
+        var presets = new MenuItem { Header = "Preset" };
+        foreach (var preset in RampPresets)
+        {
+            var item = new MenuItem { Header = preset.Name, Icon = RampSwatch(preset) };
+            item.Click += (_, _) =>
+            {
+                _settings.TempCool = preset.Cool;
+                _settings.TempWarm = preset.Warm;
+                _settings.TempHot = preset.Hot;
+                _settings.TempCritical = preset.Critical;
+                _settings.Save();
+                ApplyColors();
+                BuildContextMenu();
+            };
+            presets.Items.Add(item);
+        }
+        ramp.Items.Add(presets);
+        ramp.Items.Add(new Separator());
+
+        ramp.Items.Add(BuildColorMenu($"Cool (below {Deg(MetricPanel.WarmAt)})", Palette,
+            () => _settings.TempCool ?? DefaultTempCool, v => _settings.TempCool = v));
+        ramp.Items.Add(BuildColorMenu($"Warm ({Deg(MetricPanel.WarmAt)}+)", Palette,
+            () => _settings.TempWarm ?? DefaultTempWarm, v => _settings.TempWarm = v));
+        ramp.Items.Add(BuildColorMenu($"Hot ({Deg(MetricPanel.HotAt)}+)", Palette,
+            () => _settings.TempHot ?? DefaultTempHot, v => _settings.TempHot = v));
+        ramp.Items.Add(BuildColorMenu($"Critical ({Deg(MetricPanel.CriticalAt)}+)", Palette,
+            () => _settings.TempCritical ?? DefaultTempCritical, v => _settings.TempCritical = v));
+
+        colors.Items.Add(ramp);
+
         colors.Items.Add(new Separator());
         var resetColors = new MenuItem { Header = "Reset colors" };
         resetColors.Click += (_, _) =>
@@ -499,6 +584,10 @@ public partial class MainWindow : Window
             _settings.CpuAccent = null;
             _settings.GpuAccent = null;
             _settings.Background = null;
+            _settings.TempCool = null;
+            _settings.TempWarm = null;
+            _settings.TempHot = null;
+            _settings.TempCritical = null;
             _settings.Save();
             ApplyColors();
             BuildContextMenu();

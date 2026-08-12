@@ -170,12 +170,21 @@ public partial class MetricPanel : UserControl
         DrawGraph();
     }
 
+    // The temperature ramp, configurable from the Colors menu. Thresholds are in Celsius
+    // whatever unit is displayed.
+    public const float WarmAt = 60, HotAt = 75, CriticalAt = 90;
+
+    public static Color CoolColor { get; set; } = Color.FromRgb(0x62, 0xD0, 0x95);
+    public static Color WarmColor { get; set; } = Color.FromRgb(0xFF, 0xB0, 0x4D);
+    public static Color HotColor { get; set; } = Color.FromRgb(0xFF, 0x7A, 0x45);
+    public static Color CriticalColor { get; set; } = Color.FromRgb(0xFF, 0x4D, 0x4D);
+
     public static Color TempColor(float c) => c switch
     {
-        >= 90 => Color.FromRgb(0xFF, 0x4D, 0x4D),
-        >= 75 => Color.FromRgb(0xFF, 0x7A, 0x45),
-        >= 60 => Color.FromRgb(0xFF, 0xB0, 0x4D),
-        _ => Color.FromRgb(0x62, 0xD0, 0x95),
+        >= CriticalAt => CriticalColor,
+        >= HotAt => HotColor,
+        >= WarmAt => WarmColor,
+        _ => CoolColor,
     };
 
     private void Trim()

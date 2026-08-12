@@ -23,6 +23,12 @@ public sealed class Settings
     public string? GpuAccent { get; set; }
     public string? Background { get; set; }
 
+    // The temperature ramp: which colour each threshold band uses.
+    public string? TempCool { get; set; }
+    public string? TempWarm { get; set; }
+    public string? TempHot { get; set; }
+    public string? TempCritical { get; set; }
+
     private static string Path0 => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
         "CpuWidget", "settings.json");
