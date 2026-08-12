@@ -7,5 +7,5 @@ namespace CpuWidget;
 /// </summary>
 public static class AppVersion
 {
-    public const string Display = "v.1.054";
+    public const string Display = "v.1.055";
 }

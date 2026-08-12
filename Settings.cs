@@ -17,6 +17,12 @@ public sealed class Settings
     /// <summary>Show temperatures in °F instead of °C.</summary>
     public bool Fahrenheit { get; set; }
 
+    // Colours, as #RRGGBB or #AARRGGBB. Null means the built-in default.
+    public string? TitleColor { get; set; }
+    public string? CpuAccent { get; set; }
+    public string? GpuAccent { get; set; }
+    public string? Background { get; set; }
+
     private static string Path0 => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
         "CpuWidget", "settings.json");

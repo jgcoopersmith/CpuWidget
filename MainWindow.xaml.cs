@@ -13,6 +13,7 @@ using Separator = System.Windows.Controls.Separator;
 using MouseEventArgs = System.Windows.Input.MouseEventArgs;
 using Point = System.Windows.Point;
 using Matrix = System.Windows.Media.Matrix;
+using Media = System.Windows.Media;
 
 namespace CpuWidget;
 
@@ -25,6 +26,7 @@ public partial class MainWindow : Window
     private Forms.NotifyIcon? _tray;
     private Drawing.Icon? _trayIcon;
     private MenuItem _startupItem = null!;   // built in BuildContextMenu, from the constructor
+    private bool _startupEnabled;            // survives menu rebuilds
     private bool _reading;   // guards against overlapping sensor reads
 
     private const string TaskName = "CpuWidget";
@@ -39,6 +41,7 @@ public partial class MainWindow : Window
         Opacity = _settings.Opacity;
         MetricPanel.UseFahrenheit = _settings.Fahrenheit;
 
+        ApplyColors();
         BuildContextMenu();
         MouseLeftButtonDown += (_, _) => { if (Mouse.LeftButton == MouseButtonState.Pressed) DragMove(); };
 
@@ -98,8 +101,8 @@ public partial class MainWindow : Window
 
     private async Task RefreshStartupItemAsync()
     {
-        bool exists = await Task.Run(StartupTaskExists);
-        _startupItem.IsChecked = exists;
+        _startupEnabled = await Task.Run(StartupTaskExists);
+        _startupItem.IsChecked = _startupEnabled;
     }
 
     private async void Tick()
@@ -335,6 +338,106 @@ public partial class MainWindow : Window
         _tray.Text = tip;
     }
 
+    // --- colours ----------------------------------------------------------
+
+    private const string DefaultTitleColor = "#FFD700";
+    private const string DefaultCpuAccent = "#5AA9FF";
+    private const string DefaultGpuAccent = "#A78BFA";
+    private const string DefaultBackground = "#EE0E1116";
+
+    private static readonly (string Name, string Hex)[] Palette =
+    {
+        ("Gold", "#FFD700"),
+        ("Amber", "#FFB020"),
+        ("Red", "#FF5252"),
+        ("Green", "#62D095"),
+        ("Cyan", "#45C8DE"),
+        ("Blue", "#5AA9FF"),
+        ("Violet", "#A78BFA"),
+        ("Pink", "#FF7AB6"),
+        ("White", "#FFFFFF"),
+        ("Grey", "#8FA0B4"),
+    };
+
+    // Backgrounds keep their alpha so the widget stays slightly translucent.
+    private static readonly (string Name, string Hex)[] BackgroundPalette =
+    {
+        ("Charcoal", "#EE0E1116"),
+        ("Slate", "#EE181D26"),
+        ("Navy", "#EE0B1428"),
+        ("Plum", "#EE180E22"),
+        ("Forest", "#EE0C1C14"),
+        ("Black", "#F0000000"),
+    };
+
+    private static Media.SolidColorBrush MakeBrush(string hex) =>
+        new((Media.Color)Media.ColorConverter.ConvertFromString(hex)!);
+
+    private void ApplyColors()
+    {
+        TitleBar.Foreground = MakeBrush(_settings.TitleColor ?? DefaultTitleColor);
+        CpuPanel.Accent = MakeBrush(_settings.CpuAccent ?? DefaultCpuAccent);
+        GpuPanel.Accent = MakeBrush(_settings.GpuAccent ?? DefaultGpuAccent);
+        RootBorder.Background = MakeBrush(_settings.Background ?? DefaultBackground);
+    }
+
+    private MenuItem BuildColorMenu(string header, (string, string)[] palette,
+                                    Func<string> get, Action<string> set)
+    {
+        var menu = new MenuItem { Header = header };
+
+        foreach (var (name, hex) in palette)
+        {
+            var choice = new MenuItem { Header = name, Icon = Swatch(hex) };
+            choice.Click += (_, _) => Choose(set, hex);
+            menu.Items.Add(choice);
+        }
+
+        menu.Items.Add(new Separator());
+
+        var custom = new MenuItem { Header = "Custom…", Icon = Swatch(get()) };
+        custom.Click += (_, _) => PickCustomColor(get, set);
+        menu.Items.Add(custom);
+
+        return menu;
+    }
+
+    private static System.Windows.Shapes.Rectangle Swatch(string hex) => new()
+    {
+        Width = 12,
+        Height = 12,
+        Fill = MakeBrush(hex),
+        Stroke = MakeBrush("#59FFFFFF"),
+        StrokeThickness = 1,
+        RadiusX = 2,
+        RadiusY = 2,
+    };
+
+    private void Choose(Action<string> set, string hex)
+    {
+        set(hex);
+        _settings.Save();
+        ApplyColors();
+        BuildContextMenu();   // refresh the "Custom…" swatches
+    }
+
+    /// <summary>Opens the system colour picker, keeping the current alpha.</summary>
+    private void PickCustomColor(Func<string> get, Action<string> set)
+    {
+        var current = (Media.Color)Media.ColorConverter.ConvertFromString(get())!;
+
+        using var dialog = new Forms.ColorDialog
+        {
+            FullOpen = true,
+            Color = Drawing.Color.FromArgb(current.R, current.G, current.B),
+        };
+
+        if (dialog.ShowDialog() != Forms.DialogResult.OK) return;
+
+        var picked = dialog.Color;
+        Choose(set, $"#{current.A:X2}{picked.R:X2}{picked.G:X2}{picked.B:X2}");
+    }
+
     // --- context menu ----------------------------------------------------
 
     private void BuildContextMenu()
@@ -378,10 +481,45 @@ public partial class MainWindow : Window
         }
         menu.Items.Add(opacity);
 
+        var colors = new MenuItem { Header = "Colors" };
+        colors.Items.Add(BuildColorMenu("Title", Palette,
+            () => _settings.TitleColor ?? DefaultTitleColor, v => _settings.TitleColor = v));
+        colors.Items.Add(BuildColorMenu("CPU accent", Palette,
+            () => _settings.CpuAccent ?? DefaultCpuAccent, v => _settings.CpuAccent = v));
+        colors.Items.Add(BuildColorMenu("GPU accent", Palette,
+            () => _settings.GpuAccent ?? DefaultGpuAccent, v => _settings.GpuAccent = v));
+        colors.Items.Add(BuildColorMenu("Background", BackgroundPalette,
+            () => _settings.Background ?? DefaultBackground, v => _settings.Background = v));
+
+        colors.Items.Add(new Separator());
+        var resetColors = new MenuItem { Header = "Reset colors" };
+        resetColors.Click += (_, _) =>
+        {
+            _settings.TitleColor = null;
+            _settings.CpuAccent = null;
+            _settings.GpuAccent = null;
+            _settings.Background = null;
+            _settings.Save();
+            ApplyColors();
+            BuildContextMenu();
+        };
+        colors.Items.Add(resetColors);
+        menu.Items.Add(colors);
+
         // Whether the task exists is resolved off-thread in OnLoaded; querying schtasks.exe
-        // synchronously here would stall window creation.
-        _startupItem = new MenuItem { Header = "Start with Windows", IsCheckable = true };
-        _startupItem.Click += (_, _) => SetStartupTask(_startupItem.IsChecked);
+        // synchronously here would stall window creation. Rebuilding the menu (after a colour
+        // change) must not forget what that lookup found, hence the cached flag.
+        _startupItem = new MenuItem
+        {
+            Header = "Start with Windows",
+            IsCheckable = true,
+            IsChecked = _startupEnabled,
+        };
+        _startupItem.Click += (_, _) =>
+        {
+            _startupEnabled = _startupItem.IsChecked;
+            SetStartupTask(_startupItem.IsChecked);
+        };
         menu.Items.Add(_startupItem);
 
         menu.Items.Add(new Separator());

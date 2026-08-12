@@ -27,8 +27,13 @@ unelevated and you'll get usage only — everything else shows `--`.
   Below ~62% scale the device name, clock and footer detail hide themselves — at that size
   they're unreadable anyway — leaving the labels, the load and temperature figures, and
   the graphs.
-- **Right-click** for: always-on-top toggle, **°C / °F**, opacity, *Start with Windows*,
-  reset position, exit. The unit choice applies instantly and is remembered.
+- **Right-click** for: always-on-top toggle, **°C / °F**, opacity, **colors**,
+  *Start with Windows*, reset position, exit. Choices apply instantly and are remembered.
+- **Colors** submenu sets the title, the CPU accent, the GPU accent and the background,
+  each from a palette or via *Custom…*, which opens the system colour picker. The
+  background keeps its alpha so the widget stays slightly translucent. *Reset colors*
+  returns everything to the defaults. Temperature figures stay on their own
+  green→amber→orange→red thresholds and aren't themeable.
 - **Tray icon** is the thermostat dial. Hover for CPU load / temperature and GPU temperature;
   left-click hides/shows the widget; right-click for show-hide and exit.
 
