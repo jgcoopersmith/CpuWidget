@@ -43,7 +43,14 @@ public partial class MainWindow : Window
 
         ApplyColors();
         BuildContextMenu();
-        MouseLeftButtonDown += (_, _) => { if (Mouse.LeftButton == MouseButtonState.Pressed) DragMove(); };
+
+        // Moving is done by hand rather than with DragMove(). DragMove hands the drag to
+        // Windows' modal move loop, which applies its own edge rules and refuses to let the
+        // window sit flush against the top of the screen, dropping it a row lower instead.
+        MouseLeftButtonDown += Window_MouseLeftButtonDown;
+        MouseMove += Window_MouseMove;
+        MouseLeftButtonUp += (_, _) => EndMove();
+        LostMouseCapture += (_, _) => EndMove();
 
         Loaded += OnLoaded;
         Closing += OnClosing;
@@ -134,6 +141,63 @@ public partial class MainWindow : Window
         {
             _reading = false;
         }
+    }
+
+    // --- moving -----------------------------------------------------------
+
+    private bool _moving;
+    private double _moveStartLeft, _moveStartTop;
+    private Point _moveStartCursor;
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct POINT { public int X, Y; }
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetCursorPos(out POINT p);
+
+    /// <summary>Cursor position in device-independent screen units.</summary>
+    private Point CursorPos()
+    {
+        if (!GetCursorPos(out var p)) return _moveStartCursor;
+        var transform = PresentationSource.FromVisual(this)?.CompositionTarget?.TransformFromDevice;
+        return transform is Matrix m ? m.Transform(new Point(p.X, p.Y)) : new Point(p.X, p.Y);
+    }
+
+    private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        _moving = true;
+        _moveStartLeft = Left;
+        _moveStartTop = Top;
+        _moveStartCursor = CursorPos();
+        CaptureMouse();
+    }
+
+    private void Window_MouseMove(object sender, MouseEventArgs e)
+    {
+        if (!_moving) return;
+
+        if (e.LeftButton != MouseButtonState.Pressed)
+        {
+            EndMove();
+            return;
+        }
+
+        var now = CursorPos();
+        Left = _moveStartLeft + (now.X - _moveStartCursor.X);
+        Top = _moveStartTop + (now.Y - _moveStartCursor.Y);
+    }
+
+    private void EndMove()
+    {
+        if (!_moving) return;
+        _moving = false;
+        if (IsMouseCaptured) ReleaseMouseCapture();
+
+        // No modal move loop means no WM_EXITSIZEMOVE, so persist the position here.
+        _settings.Left = Left;
+        _settings.Top = Top;
+        _settings.Save();
     }
 
     // --- scaling ----------------------------------------------------------
