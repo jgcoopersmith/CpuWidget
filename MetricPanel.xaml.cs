@@ -30,6 +30,9 @@ public partial class MetricPanel : UserControl
     private DeviceReading? _last;
     private double _graphWidth, _graphHeight;
 
+    /// <summary>Hottest temperature seen since launch or since the last reset, in Celsius.</summary>
+    private float? _peakTemp;
+
     /// <summary>Display unit for every panel. Sensors and thresholds stay in Celsius.</summary>
     public static bool UseFahrenheit { get; set; }
 
@@ -55,6 +58,12 @@ public partial class MetricPanel : UserControl
         TempUnitText.FontSize = Math.Max(5, 12 * s);
         ClockTextBlock.FontSize = Math.Max(5, 10 * s);
         DetailText.FontSize = Math.Max(5, 10 * s);
+        MaxTextLeft.FontSize = Math.Max(5, 10 * s);
+        MaxTextRight.FontSize = Math.Max(5, 10 * s);
+        ResetLeft.FontSize = Math.Max(6, 10 * s);
+        ResetRight.FontSize = Math.Max(6, 10 * s);
+        MaxLeftPanel.Margin = new Thickness(0, 0, 8 * s, 0);
+        MaxRightPanel.Margin = new Thickness(8 * s, 0, 0, 0);
 
         UsageUnitText.Margin = new Thickness(2 * s, 0, 0, 5 * s);
         TempUnitText.Margin = new Thickness(2 * s, 0, 0, 5 * s);
@@ -69,6 +78,10 @@ public partial class MetricPanel : UserControl
         DeviceNameText.Visibility = detail;
         ClockTextBlock.Visibility = detail;
         DetailText.Visibility = detail;
+
+        bool showPeak = detail == Visibility.Visible;
+        MaxLeftPanel.Visibility = showPeak && _peakOnLeft ? Visibility.Visible : Visibility.Collapsed;
+        MaxRightPanel.Visibility = showPeak && !_peakOnLeft ? Visibility.Visible : Visibility.Collapsed;
     }
 
     /// <summary>Scale below which the device name, clock and footer detail are hidden.</summary>
@@ -106,6 +119,29 @@ public partial class MetricPanel : UserControl
     /// <summary>Message shown in the footer when there is no temperature to display.</summary>
     public string? StatusMessage { get; set; }
 
+    /// <summary>
+    /// Which end of the footer carries the peak readout: the left for the CPU, the right
+    /// (past the watts) for the GPU.
+    /// </summary>
+    public bool PeakOnLeft
+    {
+        get => _peakOnLeft;
+        set
+        {
+            _peakOnLeft = value;
+            MaxLeftPanel.Visibility = value ? Visibility.Visible : Visibility.Collapsed;
+            MaxRightPanel.Visibility = value ? Visibility.Collapsed : Visibility.Visible;
+        }
+    }
+
+    private bool _peakOnLeft;
+
+    private void ResetMax_Click(object sender, RoutedEventArgs e)
+    {
+        _peakTemp = null;
+        Refresh();   // repopulates from the current reading rather than sitting blank
+    }
+
     /// <summary>Latest temperature, for the tray tooltip.</summary>
     public float? LastTemp { get; private set; }
 
@@ -134,6 +170,7 @@ public partial class MetricPanel : UserControl
 
         if (r.Temp is float temp)
         {
+            _peakTemp = Math.Max(_peakTemp ?? float.MinValue, temp);
             TempText.Text = ToDisplay(temp).ToString("0");
             // Colour thresholds are defined in Celsius regardless of the display unit.
             var brush = new SolidColorBrush(TempColor(temp));
@@ -147,6 +184,10 @@ public partial class MetricPanel : UserControl
         }
 
         ClockTextBlock.Text = r.ClockMhz is float mhz ? $"{mhz / 1000f:0.00} GHz" : "";
+
+        string peak = _peakTemp is float p ? $"{ToDisplay(p):0} MAX" : "-- MAX";
+        MaxTextLeft.Text = peak;
+        MaxTextRight.Text = peak;
 
         // A missing temperature always has a reason — show it rather than a bare "--".
         // The reading carries its own reason; StatusMessage is only a startup-time fallback.

@@ -52,13 +52,60 @@
             </Canvas>
         </Border>
 
-        <!-- footer: clock, hottest sensor, power, memory -->
+        <!-- footer: peak temperature, clock, hottest sensor, power, memory -->
         <DockPanel Grid.Row="3">
-            <TextBlock x:Name="ClockTextBlock" Text="" FontSize="10"
-                       Foreground="#8FA0B4" Opacity="0.7" />
+            <DockPanel.Resources>
+                <!-- borderless reset button; the glyph carries it -->
+                <Style x:Key="ResetButtonStyle" TargetType="Button">
+                    <Setter Property="Foreground" Value="#8FA0B4" />
+                    <Setter Property="Opacity" Value="0.55" />
+                    <Setter Property="Padding" Value="2,0" />
+                    <Setter Property="Margin" Value="2,0,0,0" />
+                    <Setter Property="Cursor" Value="Hand" />
+                    <Setter Property="ToolTip" Value="Reset peak temperature" />
+                    <Setter Property="FontFamily" Value="Segoe UI Symbol" />
+                    <Setter Property="VerticalAlignment" Value="Center" />
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="Transparent" Padding="{TemplateBinding Padding}">
+                                    <ContentPresenter VerticalAlignment="Center" />
+                                </Border>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                    <Style.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Opacity" Value="1" />
+                        </Trigger>
+                    </Style.Triggers>
+                </Style>
+            </DockPanel.Resources>
+
+            <!-- CPU keeps its peak at the far left -->
+            <StackPanel x:Name="MaxLeftPanel" DockPanel.Dock="Left" Orientation="Horizontal"
+                        Visibility="Collapsed" Margin="0,0,8,0">
+                <TextBlock x:Name="MaxTextLeft" Text="" FontSize="10"
+                           Foreground="#8FA0B4" Opacity="0.7" VerticalAlignment="Center" />
+                <Button x:Name="ResetLeft" Content="↻" FontSize="10"
+                        Style="{StaticResource ResetButtonStyle}" Click="ResetMax_Click" />
+            </StackPanel>
+
+            <!-- GPU keeps its peak at the far right, past the watts -->
+            <StackPanel x:Name="MaxRightPanel" DockPanel.Dock="Right" Orientation="Horizontal"
+                        Visibility="Collapsed" Margin="8,0,0,0">
+                <TextBlock x:Name="MaxTextRight" Text="" FontSize="10"
+                           Foreground="#8FA0B4" Opacity="0.7" VerticalAlignment="Center" />
+                <Button x:Name="ResetRight" Content="↻" FontSize="10"
+                        Style="{StaticResource ResetButtonStyle}" Click="ResetMax_Click" />
+            </StackPanel>
+
             <TextBlock x:Name="DetailText" DockPanel.Dock="Right" HorizontalAlignment="Right"
                        Text="" FontSize="10" Foreground="#8FA0B4" Opacity="0.7"
                        TextTrimming="CharacterEllipsis" />
+
+            <TextBlock x:Name="ClockTextBlock" Text="" FontSize="10"
+                       Foreground="#8FA0B4" Opacity="0.7" />
         </DockPanel>
     </Grid>
 </UserControl>

@@ -29,9 +29,16 @@ public sealed class Settings
     public string? TempHot { get; set; }
     public string? TempCritical { get; set; }
 
-    private static string Path0 => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "CpuWidget", "settings.json");
+    /// <summary>
+    /// Where settings live. CPUWIDGET_SETTINGS overrides the location so a test build can
+    /// be run without touching the real widget's saved position, size and colours.
+    /// </summary>
+    private static string Path0 =>
+        Environment.GetEnvironmentVariable("CPUWIDGET_SETTINGS") is { Length: > 0 } custom
+            ? custom
+            : Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "CpuWidget", "settings.json");
 
     public static Settings Load()
     {

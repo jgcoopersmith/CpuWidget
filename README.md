@@ -52,8 +52,13 @@ Two labelled sections, **CPU** (blue) and **GPU** (violet), each laid out the sa
 | Coloured number | Temperature — green <60°, amber <75°, orange <90°, red above |
 | Solid accent line | Load history (0–100%) |
 | Dashed line | Temperature history (25–100°C) |
-| Footer left | Clock speed |
-| Footer right | CPU: hottest core, package watts. GPU: hot spot, VRAM used, watts |
+| Footer left | CPU: peak temperature + reset. Then clock speed |
+| Footer right | CPU: hottest core, package watts. GPU: hot spot, VRAM used, watts, then peak temperature + reset |
+
+`XXX MAX` is the highest temperature seen since launch, or since it was last reset with the
+`↻` button beside it. The CPU's sits at the far bottom-left, the GPU's at the bottom-right
+past the watts. Resetting clears the peak, which then repopulates from the current reading.
+Peaks are tracked in Celsius and displayed in whichever unit is selected.
 
 Values only appear when the hardware exposes them; anything missing shows `--`.
 
