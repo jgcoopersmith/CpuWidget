@@ -82,22 +82,22 @@
                 </Style>
             </DockPanel.Resources>
 
-            <!-- CPU keeps its peak at the far left -->
+            <!-- peak load, sitting under the load figure at the far left -->
             <StackPanel x:Name="MaxLeftPanel" DockPanel.Dock="Left" Orientation="Horizontal"
-                        Visibility="Collapsed" Margin="0,0,8,0">
+                        Margin="0,0,8,0" ToolTip="Peak load">
                 <TextBlock x:Name="MaxTextLeft" Text="" FontSize="10"
                            Foreground="#8FA0B4" Opacity="0.7" VerticalAlignment="Center" />
                 <Button x:Name="ResetLeft" Content="↻" FontSize="10"
-                        Style="{StaticResource ResetButtonStyle}" Click="ResetMax_Click" />
+                        Style="{StaticResource ResetButtonStyle}" Click="ResetPeakLoad_Click" />
             </StackPanel>
 
-            <!-- GPU keeps its peak at the far right, past the watts -->
+            <!-- peak temperature, sitting under the temperature at the far right -->
             <StackPanel x:Name="MaxRightPanel" DockPanel.Dock="Right" Orientation="Horizontal"
-                        Visibility="Collapsed" Margin="8,0,0,0">
+                        Margin="8,0,0,0" ToolTip="Peak temperature">
                 <TextBlock x:Name="MaxTextRight" Text="" FontSize="10"
                            Foreground="#8FA0B4" Opacity="0.7" VerticalAlignment="Center" />
                 <Button x:Name="ResetRight" Content="↻" FontSize="10"
-                        Style="{StaticResource ResetButtonStyle}" Click="ResetMax_Click" />
+                        Style="{StaticResource ResetButtonStyle}" Click="ResetPeakTemp_Click" />
             </StackPanel>
 
             <TextBlock x:Name="DetailText" DockPanel.Dock="Right" HorizontalAlignment="Right"

@@ -33,6 +33,9 @@ public partial class MetricPanel : UserControl
     /// <summary>Hottest temperature seen since launch or since the last reset, in Celsius.</summary>
     private float? _peakTemp;
 
+    /// <summary>Highest load seen since launch or since the last reset, as a percentage.</summary>
+    private float? _peakLoad;
+
     /// <summary>Display unit for every panel. Sensors and thresholds stay in Celsius.</summary>
     public static bool UseFahrenheit { get; set; }
 
@@ -79,9 +82,9 @@ public partial class MetricPanel : UserControl
         ClockTextBlock.Visibility = detail;
         DetailText.Visibility = detail;
 
-        bool showPeak = detail == Visibility.Visible;
-        MaxLeftPanel.Visibility = showPeak && _peakOnLeft ? Visibility.Visible : Visibility.Collapsed;
-        MaxRightPanel.Visibility = showPeak && !_peakOnLeft ? Visibility.Visible : Visibility.Collapsed;
+        // Both peaks show together: one under the load figure, one under the temperature.
+        MaxLeftPanel.Visibility = detail;
+        MaxRightPanel.Visibility = detail;
     }
 
     /// <summary>Scale below which the device name, clock and footer detail are hidden.</summary>
@@ -119,27 +122,18 @@ public partial class MetricPanel : UserControl
     /// <summary>Message shown in the footer when there is no temperature to display.</summary>
     public string? StatusMessage { get; set; }
 
-    /// <summary>
-    /// Which end of the footer carries the peak readout: the left for the CPU, the right
-    /// (past the watts) for the GPU.
-    /// </summary>
-    public bool PeakOnLeft
+    /// <summary>Clears the peak load; it repopulates from the current reading.</summary>
+    private void ResetPeakLoad_Click(object sender, RoutedEventArgs e)
     {
-        get => _peakOnLeft;
-        set
-        {
-            _peakOnLeft = value;
-            MaxLeftPanel.Visibility = value ? Visibility.Visible : Visibility.Collapsed;
-            MaxRightPanel.Visibility = value ? Visibility.Collapsed : Visibility.Visible;
-        }
+        _peakLoad = null;
+        Refresh();
     }
 
-    private bool _peakOnLeft;
-
-    private void ResetMax_Click(object sender, RoutedEventArgs e)
+    /// <summary>Clears the peak temperature; it repopulates from the current reading.</summary>
+    private void ResetPeakTemp_Click(object sender, RoutedEventArgs e)
     {
         _peakTemp = null;
-        Refresh();   // repopulates from the current reading rather than sitting blank
+        Refresh();
     }
 
     /// <summary>Latest temperature, for the tray tooltip.</summary>
@@ -164,6 +158,7 @@ public partial class MetricPanel : UserControl
 
     private void Render(DeviceReading r)
     {
+        if (r.Load is float l) _peakLoad = Math.Max(_peakLoad ?? float.MinValue, l);
         UsageText.Text = r.Load is float load ? load.ToString("0") : "--";
 
         TempUnitText.Text = UnitLabel;
@@ -185,9 +180,9 @@ public partial class MetricPanel : UserControl
 
         ClockTextBlock.Text = r.ClockMhz is float mhz ? $"{mhz / 1000f:0.00} GHz" : "";
 
-        string peak = _peakTemp is float p ? $"{ToDisplay(p):0} MAX" : "-- MAX";
-        MaxTextLeft.Text = peak;
-        MaxTextRight.Text = peak;
+        // Left sits under the load figure, right under the temperature.
+        MaxTextLeft.Text = _peakLoad is float pl ? $"{pl:0} MAX" : "-- MAX";
+        MaxTextRight.Text = _peakTemp is float pt ? $"{ToDisplay(pt):0} MAX" : "-- MAX";
 
         // A missing temperature always has a reason — show it rather than a bare "--".
         // The reading carries its own reason; StatusMessage is only a startup-time fallback.

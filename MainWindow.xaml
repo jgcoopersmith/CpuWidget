@@ -30,13 +30,11 @@
                        HorizontalAlignment="Center" Margin="0,0,0,4"
                        TextTrimming="CharacterEllipsis" />
 
-            <local:MetricPanel x:Name="CpuPanel" Grid.Row="1" Title="CPU" Accent="#5AA9FF"
-                               PeakOnLeft="True" />
+            <local:MetricPanel x:Name="CpuPanel" Grid.Row="1" Title="CPU" Accent="#5AA9FF" />
 
             <Border x:Name="Divider" Grid.Row="2" Height="1" Background="#1AFFFFFF" Margin="0,9,0,8" />
 
-            <local:MetricPanel x:Name="GpuPanel" Grid.Row="3" Title="GPU" Accent="#A78BFA"
-                               PeakOnLeft="False" />
+            <local:MetricPanel x:Name="GpuPanel" Grid.Row="3" Title="GPU" Accent="#A78BFA" />
 
             <TextBlock x:Name="VersionText" Grid.Row="4" Text="v.0.000" FontSize="8"
                        Foreground="#8FA0B4" Opacity="0.35"
