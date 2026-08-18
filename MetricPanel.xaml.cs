@@ -1,11 +1,14 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 // WinForms is referenced for the tray icon; keep the WPF types as the unqualified ones.
 using UserControl = System.Windows.Controls.UserControl;
 using Brush = System.Windows.Media.Brush;
 using Color = System.Windows.Media.Color;
 using Point = System.Windows.Point;
+using MouseEventArgs = System.Windows.Input.MouseEventArgs;
+using ToolTip = System.Windows.Controls.ToolTip;
 
 namespace CpuWidget;
 
@@ -121,6 +124,46 @@ public partial class MetricPanel : UserControl
 
     /// <summary>Message shown in the footer when there is no temperature to display.</summary>
     public string? StatusMessage { get; set; }
+
+    /// <summary>Raised while the pointer is over the graph, so an owner can fill the tooltip.</summary>
+    public event EventHandler? GraphHoverStarted;
+    public event EventHandler? GraphHoverEnded;
+
+    private void Graph_MouseEnter(object sender, MouseEventArgs e) =>
+        GraphHoverStarted?.Invoke(this, EventArgs.Empty);
+
+    private void Graph_MouseLeave(object sender, MouseEventArgs e) =>
+        GraphHoverEnded?.Invoke(this, EventArgs.Empty);
+
+    /// <summary>
+    /// Sets the graph's tooltip. Null removes it. Assigning while the tooltip is open
+    /// refreshes what is on screen, so it can tick along with new samples.
+    /// </summary>
+    public void SetGraphTooltip(string? text)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            GraphBorder.ToolTip = null;
+            return;
+        }
+
+        if (GraphBorder.ToolTip is ToolTip existing)
+        {
+            existing.Content = text;
+            return;
+        }
+
+        GraphBorder.ToolTip = new ToolTip
+        {
+            Content = text,
+            FontSize = 11,
+            Background = new SolidColorBrush(Color.FromRgb(0x14, 0x18, 0x1F)),
+            Foreground = new SolidColorBrush(Color.FromRgb(0xDD, 0xE4, 0xEC)),
+            BorderBrush = new SolidColorBrush(Color.FromArgb(0x33, 0xFF, 0xFF, 0xFF)),
+            Padding = new Thickness(8, 5, 8, 5),
+            HasDropShadow = true,
+        };
+    }
 
     /// <summary>Clears the peak load; it repopulates from the current reading.</summary>
     private void ResetPeakLoad_Click(object sender, RoutedEventArgs e)

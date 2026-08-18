@@ -55,6 +55,13 @@ Two labelled sections, **CPU** (blue) and **GPU** (violet), each laid out the sa
 | Footer left | CPU: peak temperature + reset. Then clock speed |
 | Footer right | CPU: hottest core, package watts. GPU: hot spot, VRAM used, watts, then peak temperature + reset |
 
+**Hover the CPU graph** to see the three busiest processes. Windows has no instantaneous
+per-process CPU figure, so it is measured from the change in each process's total processor
+time: the tooltip shows "measuring…" for one second, then updates every second while the
+pointer stays there. Nothing is sampled otherwise — walking every process is far more
+expensive than reading a sensor. Figures are a share of *total* capacity across all logical
+processors (so 100% means every core saturated), and helper processes are summed by name.
+
 `XXX MAX` is the highest temperature seen since launch, or since it was last reset with the
 `↻` button beside it. The CPU's sits at the far bottom-left, the GPU's at the bottom-right
 past the watts. Resetting clears the peak, which then repopulates from the current reading.

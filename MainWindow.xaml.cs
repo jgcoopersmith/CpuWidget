@@ -98,6 +98,7 @@ public partial class MainWindow : Window
         EnsureOnScreen();
 
         SetupTray();
+        SetupProcessHover();
 
         _timer.Tick += (_, _) => Tick();
         _timer.Start();
@@ -141,6 +142,52 @@ public partial class MainWindow : Window
         {
             _reading = false;
         }
+    }
+
+    // --- top processes on hover -------------------------------------------
+
+    private readonly ProcessSampler _processes = new();
+    private readonly DispatcherTimer _processTimer = new() { Interval = TimeSpan.FromSeconds(1) };
+    private bool _samplingProcesses;
+
+    private void SetupProcessHover()
+    {
+        CpuPanel.GraphHoverStarted += (_, _) =>
+        {
+            // Nothing is sampled until the pointer is actually over the graph: walking every
+            // process costs far more than reading a sensor.
+            _processes.Reset();
+            CpuPanel.SetGraphTooltip("Top processes\nmeasuring…");
+            _processTimer.Start();
+        };
+
+        CpuPanel.GraphHoverEnded += (_, _) => _processTimer.Stop();
+
+        _processTimer.Tick += async (_, _) =>
+        {
+            if (_samplingProcesses) return;
+            _samplingProcesses = true;
+            try
+            {
+                var top = await Task.Run(() => _processes.Sample(3));
+                if (top.Count == 0) return;   // first tick only sets the baseline
+
+                var text = new System.Text.StringBuilder("Top processes");
+                foreach (var entry in top)
+                    text.Append($"\n{entry.Name}  {entry.Percent:0.0}%");
+
+                CpuPanel.SetGraphTooltip(text.ToString());
+            }
+            catch (Exception ex)
+            {
+                HardwareMonitor.Log($"process sample FAILED: {ex}");
+                CpuPanel.SetGraphTooltip("Top processes unavailable");
+            }
+            finally
+            {
+                _samplingProcesses = false;
+            }
+        };
     }
 
     // --- moving -----------------------------------------------------------
@@ -789,6 +836,7 @@ public partial class MainWindow : Window
     private void OnClosing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
         _timer.Stop();
+        _processTimer.Stop();
         _settings.Left = Left;
         _settings.Top = Top;
         _settings.Width = Width;
