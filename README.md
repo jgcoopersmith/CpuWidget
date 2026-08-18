@@ -69,6 +69,28 @@ Peaks are tracked in Celsius and displayed in whichever unit is selected.
 
 Values only appear when the hardware exposes them; anything missing shows `--`.
 
+## History
+
+The widget keeps a rolling month of performance in `%APPDATA%\CpuWidget\history.csv`.
+
+Readings arrive once a second, which would be millions of rows over 30 days, so they are
+folded into **one-minute buckets** holding the average and the peak of each measurement:
+
+```
+timestamp,cpu_load_avg,cpu_load_max,cpu_temp_avg,cpu_temp_max,cpu_watts_avg,
+          gpu_load_avg,gpu_load_max,gpu_temp_avg,gpu_temp_max,gpu_watts_avg
+2026-08-15T10:00:00-05:00,39.5,69,54.2,69.5,61,5,9,30,31,60
+```
+
+That is about 43,000 rows and 1.6 MB per month. Rows older than 30 days are pruned at
+startup and once a day thereafter; the rewrite goes to a temporary file and swaps, so an
+interrupted prune cannot lose the log. Timestamps carry their UTC offset, so the record
+stays unambiguous across daylight-saving changes. Temperatures are always in Celsius,
+whatever the display is set to, and a blank cell means the sensor was unavailable rather
+than reading zero.
+
+Open it in a spreadsheet, or import it anywhere that reads CSV.
+
 ## Troubleshooting
 
 The widget writes `%APPDATA%\CpuWidget\log.txt` on every run, including a dump of every CPU

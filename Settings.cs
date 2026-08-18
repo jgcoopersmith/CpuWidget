@@ -30,6 +30,12 @@ public sealed class Settings
     public string? TempCritical { get; set; }
 
     /// <summary>
+    /// Folder holding settings and the history log. Follows the CPUWIDGET_SETTINGS
+    /// override, so a test build keeps its data entirely separate.
+    /// </summary>
+    public static string Directory0 => Path.GetDirectoryName(Path0)!;
+
+    /// <summary>
     /// Where settings live. CPUWIDGET_SETTINGS overrides the location so a test build can
     /// be run without touching the real widget's saved position, size and colours.
     /// </summary>

@@ -21,6 +21,7 @@ public partial class MainWindow : Window
 {
     private readonly HardwareMonitor _monitor = new();
     private readonly Settings _settings = Settings.Load();
+    private readonly HistoryLog _history = new();
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(1) };
 
     private Forms.NotifyIcon? _tray;
@@ -133,6 +134,7 @@ public partial class MainWindow : Window
 
             _lastCpu = cpu;
             UpdateTrayTooltip();
+            _history.Add(cpu, gpu, DateTimeOffset.Now);
         }
         catch (Exception ex)
         {
@@ -837,6 +839,7 @@ public partial class MainWindow : Window
     {
         _timer.Stop();
         _processTimer.Stop();
+        _history.Flush();   // don't discard the minute in progress
         _settings.Left = Left;
         _settings.Top = Top;
         _settings.Width = Width;
